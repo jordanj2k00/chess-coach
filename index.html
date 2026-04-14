@@ -381,22 +381,46 @@ header {
 </div>
 
 <script>
-// ── VOICE ──
-let voiceOn = false;
+// ── VOICE (ElevenLabs) ──
+let voiceOn=false;
+const ELEVEN_KEY='sk_a45bdd63b2151420d20c06722e001fb82f0eeb6b97db7a1b';
+const ELEVEN_VOICE='hIreuBly94QFepU63yel';
+let audioQueue=[], audioPlaying=false;
+
 function toggleVoice(){
-  voiceOn = !voiceOn;
-  const btn = document.getElementById('voiceBtn');
-  btn.textContent = voiceOn ? '🔊 Voice ON' : '🔇 Voice OFF';
-  btn.classList.toggle('on', voiceOn);
-  if(voiceOn) speak("Voice activated. Coach GM is ready.");
+  voiceOn=!voiceOn;
+  const btn=document.getElementById('voiceBtn');
+  btn.textContent=voiceOn?'🔊 Voice ON':'🔇 Voice OFF';
+  btn.classList.toggle('on',voiceOn);
+  if(voiceOn) speak("Voice activated. Coach GM is ready, Liquid Grave.");
 }
-function speak(text){
-  if(!voiceOn) return;
-  window.speechSynthesis.cancel();
-  const clean = text.replace(/<[^>]*>/g,'').replace(/\*\*/g,'').replace(/\*/g,'');
-  const utt = new SpeechSynthesisUtterance(clean.substring(0,300));
-  utt.rate = 0.95; utt.pitch = 1; utt.volume = 1;
-  window.speechSynthesis.speak(utt);
+
+async function speak(text){
+  if(!voiceOn)return;
+  const clean=text.replace(/<[^>]*>/g,'').replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1').replace(/STEP \d[^—]*—/g,'').substring(0,400);
+  audioQueue.push(clean);
+  if(!audioPlaying) processAudioQueue();
+}
+
+async function processAudioQueue(){
+  if(!audioQueue.length){audioPlaying=false;return;}
+  audioPlaying=true;
+  const text=audioQueue.shift();
+  try{
+    const res=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}/stream`,{
+      method:'POST',
+      headers:{'xi-api-key':ELEVEN_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({text,model_id:'eleven_turbo_v2',voice_settings:{stability:0.5,similarity_boost:0.75,style:0.3,use_speaker_boost:true}})
+    });
+    if(res.ok){
+      const blob=await res.blob();
+      const url=URL.createObjectURL(blob);
+      const audio=new Audio(url);
+      audio.onended=()=>{URL.revokeObjectURL(url);processAudioQueue();};
+      audio.onerror=()=>processAudioQueue();
+      await audio.play();
+    } else { processAudioQueue(); }
+  }catch(e){processAudioQueue();}
 }
 
 // ── API KEY ──
@@ -532,7 +556,8 @@ function makeMove(sr,sc,tr,tc,silent=false){
   selected=null;
   document.getElementById('turnText').textContent=turn==='w'?'White':'Black';
   renderBoard(); updateMoveStrip();
-  if(!silent){
+  if(!silent) checkGameState();
+  if(!silent&&!gameOver){
     const ctx=buildCtx();
     coachSilent(`${ctx}
 Move just played: ${nota}${captured?` (captured ${captured})`:''}. It is now ${turn==='w'?'White':'Black'}'s turn.
@@ -671,19 +696,121 @@ function updateStyleStats(){
   });
 }
 
+// ── CHECK DETECTION ──
+function findKing(color){
+  for(let r=0;r<8;r++)
+    for(let c=0;c<8;c++)
+      if(board[r][c]===color+'K') return [r,c];
+  return null;
+}
+
+function isSquareAttacked(r,c,byColor){
+  const savedBoard=board;
+  for(let sr=0;sr<8;sr++)
+    for(let sc=0;sc<8;sc++){
+      const p=board[sr][sc];
+      if(!p||p[0]!==byColor) continue;
+      if(isValidRaw(sr,sc,r,c,p)) return true;
+    }
+  return false;
+}
+
+function isValidRaw(sr,sc,tr,tc,piece){
+  if(!piece)return false;
+  const col=piece[0],type=piece[1],tgt=board[tr][tc];
+  if(tgt&&tgt[0]===col)return false;
+  const dr=tr-sr,dc=tc-sc;
+  if(type==='P'){
+    const dir=col==='w'?-1:1;
+    return Math.abs(dc)===1&&dr===dir&&(tgt!=null);
+  }
+  if(type==='R')return validRook(sr,sc,tr,tc);
+  if(type==='N')return(Math.abs(dr)===2&&Math.abs(dc)===1)||(Math.abs(dr)===1&&Math.abs(dc)===2);
+  if(type==='B')return validBishop(sr,sc,tr,tc);
+  if(type==='Q')return validRook(sr,sc,tr,tc)||validBishop(sr,sc,tr,tc);
+  if(type==='K')return Math.abs(dr)<=1&&Math.abs(dc)<=1;
+  return false;
+}
+
+function isInCheck(color){
+  const king=findKing(color);
+  if(!king)return false;
+  const opp=color==='w'?'b':'w';
+  return isSquareAttacked(king[0],king[1],opp);
+}
+
+function moveLeavesKingInCheck(sr,sc,tr,tc){
+  const saved=JSON.parse(JSON.stringify(board));
+  board[tr][tc]=board[sr][sc]; board[sr][sc]=null;
+  // handle castling rook
+  const piece=board[tr][tc];
+  if(piece&&piece[1]==='K'&&Math.abs(tc-sc)===2){
+    if(tc===6){board[tr][5]=board[tr][7];board[tr][7]=null;}
+    if(tc===2){board[tr][3]=board[tr][0];board[tr][0]=null;}
+  }
+  const col=board[tr][tc][0];
+  const inCheck=isInCheck(col);
+  board=JSON.parse(JSON.stringify(saved));
+  return inCheck;
+}
+
+function hasLegalMoves(color){
+  for(let sr=0;sr<8;sr++)
+    for(let sc=0;sc<8;sc++){
+      const p=board[sr][sc];
+      if(!p||p[0]!==color) continue;
+      for(let tr=0;tr<8;tr++)
+        for(let tc=0;tc<8;tc++)
+          if(isValid(sr,sc,tr,tc)&&!moveLeavesKingInCheck(sr,sc,tr,tc))
+            return true;
+    }
+  return false;
+}
+
+function checkGameState(){
+  const opp=turn;
+  const oppInCheck=isInCheck(opp);
+  const oppHasMoves=hasLegalMoves(opp);
+  if(!oppHasMoves){
+    if(oppInCheck){
+      // Checkmate
+      const winner=opp==='w'?'Black':'White';
+      setTimeout(()=>{
+        addMessage('ai',`<strong>♟ CHECKMATE! ${winner} wins!</strong> Game over.`);
+        speak(`Checkmate! ${winner} wins!`);
+        gameOver=true;
+      },300);
+    } else {
+      // Stalemate
+      setTimeout(()=>{
+        addMessage('ai','<strong>½ STALEMATE!</strong> The game is a draw — no legal moves but not in check.');
+        speak('Stalemate! The game is a draw.');
+        gameOver=true;
+      },300);
+    }
+  } else if(oppInCheck){
+    setTimeout(()=>{
+      addMessage('ai',`<strong>⚠️ CHECK!</strong> The ${opp==='w'?'White':'Black'} king is in check!`);
+      speak(`Check! The ${opp==='w'?'White':'Black'} king is in check!`);
+    },300);
+  }
+}
+
 // ── MOVE VALIDATION ──
 function isValid(sr,sc,tr,tc){
   const p=board[sr][sc]; if(!p)return false;
   const col=p[0],type=p[1],tgt=board[tr][tc];
   if(tgt&&tgt[0]===col)return false;
   const dr=tr-sr,dc=tc-sc;
-  if(type==='P')return validPawn(sr,sc,tr,tc,col);
-  if(type==='R')return validRook(sr,sc,tr,tc);
-  if(type==='N')return(Math.abs(dr)===2&&Math.abs(dc)===1)||(Math.abs(dr)===1&&Math.abs(dc)===2);
-  if(type==='B')return validBishop(sr,sc,tr,tc);
-  if(type==='Q')return validRook(sr,sc,tr,tc)||validBishop(sr,sc,tr,tc);
-  if(type==='K')return(Math.abs(dr)<=1&&Math.abs(dc)<=1)||(dr===0&&Math.abs(dc)===2&&canCastle(sr,sc,tc,col));
-  return false;
+  let basicValid=false;
+  if(type==='P') basicValid=validPawn(sr,sc,tr,tc,col);
+  else if(type==='R') basicValid=validRook(sr,sc,tr,tc);
+  else if(type==='N') basicValid=(Math.abs(dr)===2&&Math.abs(dc)===1)||(Math.abs(dr)===1&&Math.abs(dc)===2);
+  else if(type==='B') basicValid=validBishop(sr,sc,tr,tc);
+  else if(type==='Q') basicValid=validRook(sr,sc,tr,tc)||validBishop(sr,sc,tr,tc);
+  else if(type==='K') basicValid=(Math.abs(dr)<=1&&Math.abs(dc)<=1)||(dr===0&&Math.abs(dc)===2&&canCastle(sr,sc,tc,col));
+  if(!basicValid) return false;
+  return !moveLeavesKingInCheck(sr,sc,tr,tc);
 }
 function canCastle(r,c,tc,col){
   if(tc===6){return board[r][5]===null&&board[r][6]===null&&board[r][7]&&board[r][7][1]==='R'&&board[r][7][0]===col;}
