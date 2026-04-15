@@ -42,11 +42,7 @@ position:relative;
 }
 .light{background:#f0d9b5;}
 .dark{background:#b58863;}
-
-.selected{
-outline:4px solid yellow;
-}
-
+.selected{outline:4px solid yellow;}
 .legal::after{
 content:'';
 width:16px;
@@ -55,7 +51,6 @@ background:lime;
 border-radius:50%;
 position:absolute;
 }
-
 .white{
 color:white;
 text-shadow:2px 2px 4px black;
@@ -64,14 +59,12 @@ text-shadow:2px 2px 4px black;
 color:black;
 text-shadow:1px 1px 2px white;
 }
-
 .panel{
 background:#1a2238;
 padding:20px;
 border-radius:10px;
 width:250px;
 }
-
 button{
 padding:12px 24px;
 background:gold;
@@ -92,7 +85,6 @@ width:100%;
 
 <div>
 <div id="board"></div>
-
 <button onclick="resetGame()">Reset Game</button>
 <button onclick="startOpeningTrainer()">Opening Trainer</button>
 </div>
@@ -106,12 +98,7 @@ width:100%;
 <div id="coach">Welcome.</div>
 
 <h2>Progress</h2>
-<div id="progress">
-Correct: 0<br>
-Mistakes: 0<br>
-Accuracy: 100%<br>
-Streak: 0
-</div>
+<div id="progress"></div>
 
 <h2>Move History</h2>
 <div id="history"></div>
@@ -134,41 +121,22 @@ let trainerMode=false;
 let trainerStep=0;
 let trainerLine=[];
 
-let correctMoves=0;
-let mistakes=0;
-let streak=0;
+let correctMoves=parseInt(localStorage.getItem("correctMoves"))||0;
+let mistakes=parseInt(localStorage.getItem("mistakes"))||0;
+let streak=parseInt(localStorage.getItem("streak"))||0;
 
 const openings={
-
-1:{
-name:"Four Knights Scotch",
-line:[
-["e4"],["e5"],["Nf3"],["Nc6"],["Nc3"],["Nf6"],["d4","Bb5","g3"]
-]
-},
-
-2:{
-name:"Halloween Gambit",
-line:[
-["e4"],["e5"],["Nf3"],["Nc6"],["Nc3"],["Nf6"],["Nxe5"]
-]
-},
-
-3:{
-name:"King's Indian Defense",
-line:[
-["d4"],["Nf6"],["c4"],["g6"],["Nc3"],["Bg7"]
-]
-},
-
-4:{
-name:"Alekhine Defense",
-line:[
-["e4"],["Nf6"],["e5"],["Nd5"],["d4"]
-]
-}
-
+1:{name:"Four Knights Scotch",line:[["e4"],["e5"],["Nf3"],["Nc6"],["Nc3"],["Nf6"],["d4","Bb5","g3"]]},
+2:{name:"Halloween Gambit",line:[["e4"],["e5"],["Nf3"],["Nc6"],["Nc3"],["Nf6"],["Nxe5"]]},
+3:{name:"King's Indian Defense",line:[["d4"],["Nf6"],["c4"],["g6"],["Nc3"],["Bg7"]]},
+4:{name:"Alekhine Defense",line:[["e4"],["Nf6"],["e5"],["Nd5"],["d4"]]}
 };
+
+function saveStats(){
+localStorage.setItem("correctMoves",correctMoves);
+localStorage.setItem("mistakes",mistakes);
+localStorage.setItem("streak",streak);
+}
 
 function renderBoard(){
 
@@ -241,6 +209,8 @@ Mistakes: ${mistakes}<br>
 Accuracy: ${accuracy}%<br>
 Streak: ${streak}
 `;
+
+saveStats();
 
 }
 
@@ -388,10 +358,6 @@ chess.reset();
 selected=null;
 trainerMode=false;
 trainerStep=0;
-
-correctMoves=0;
-mistakes=0;
-streak=0;
 
 document.getElementById("coach").innerText="Reset.";
 
