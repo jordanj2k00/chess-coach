@@ -33,8 +33,8 @@ aspect-ratio:1/1;
 display:flex;
 justify-content:center;
 align-items:center;
-font-size:32px;
 cursor:pointer;
+font-size:38px;
 }
 
 .light{
@@ -64,6 +64,16 @@ margin-top:20px;
 border-radius:8px;
 font-size:20px;
 }
+
+.white{
+color:white;
+text-shadow:2px 2px 4px black;
+}
+
+.black{
+color:black;
+text-shadow:1px 1px 2px white;
+}
 </style>
 </head>
 
@@ -80,15 +90,20 @@ font-size:20px;
 <script>
 
 const startBoard = [
-['♜','♞','♝','♛','♚','♝','♞','♜'],
-['♟','♟','♟','♟','♟','♟','♟','♟'],
+['br','bn','bb','bq','bk','bb','bn','br'],
+['bp','bp','bp','bp','bp','bp','bp','bp'],
 ['','','','','','','',''],
 ['','','','','','','',''],
 ['','','','','','','',''],
 ['','','','','','','',''],
-['♙','♙','♙','♙','♙','♙','♙','♙'],
-['♖','♘','♗','♕','♔','♗','♘','♖']
+['wp','wp','wp','wp','wp','wp','wp','wp'],
+['wr','wn','wb','wq','wk','wb','wn','wr']
 ];
+
+const pieces = {
+wp:'♙', wr:'♖', wn:'♘', wb:'♗', wq:'♕', wk:'♔',
+bp:'♟', br:'♜', bn:'♞', bb:'♝', bq:'♛', bk:'♚'
+};
 
 let board = JSON.parse(JSON.stringify(startBoard));
 let selected = null;
@@ -96,49 +111,51 @@ let turn = "white";
 
 function renderBoard(){
 const boardDiv = document.getElementById("board");
-boardDiv.innerHTML = "";
+boardDiv.innerHTML="";
 
 for(let r=0;r<8;r++){
 for(let c=0;c<8;c++){
 
-const square = document.createElement("div");
+const square=document.createElement("div");
 
 square.classList.add("square");
-square.classList.add((r+c)%2===0 ? "light" : "dark");
+square.classList.add((r+c)%2===0?"light":"dark");
 
 if(selected && selected.r===r && selected.c===c){
 square.classList.add("selected");
 }
 
-square.textContent = board[r][c];
+const piece=board[r][c];
 
-square.onclick = ()=>handleClick(r,c);
+if(piece){
+square.textContent=pieces[piece];
+
+if(piece[0]==='w'){
+square.classList.add("white");
+}else{
+square.classList.add("black");
+}
+}
+
+square.onclick=()=>handleClick(r,c);
 
 boardDiv.appendChild(square);
 
 }
 }
 
-document.getElementById("status").innerText =
-turn==="white" ? "White to Move" : "Black to Move";
-}
-
-function isWhitePiece(piece){
-return "♙♖♘♗♕♔".includes(piece);
-}
-
-function isBlackPiece(piece){
-return "♟♜♞♝♛♚".includes(piece);
+document.getElementById("status").innerText=
+turn==="white"?"White to Move":"Black to Move";
 }
 
 function validTurn(piece){
-if(turn==="white") return isWhitePiece(piece);
-return isBlackPiece(piece);
+if(turn==="white") return piece[0]==='w';
+return piece[0]==='b';
 }
 
 function handleClick(r,c){
 
-const piece = board[r][c];
+const piece=board[r][c];
 
 if(selected===null){
 
@@ -148,14 +165,10 @@ selected={r,c};
 
 }else{
 
-if(validMove(selected.r,selected.c,r,c)){
-
 board[r][c]=board[selected.r][selected.c];
 board[selected.r][selected.c]="";
 
-turn = turn==="white" ? "black" : "white";
-
-}
+turn=turn==="white"?"black":"white";
 
 selected=null;
 
@@ -165,55 +178,11 @@ renderBoard();
 
 }
 
-function validMove(sr,sc,tr,tc){
-
-const piece = board[sr][sc];
-
-if(!piece) return false;
-
-const dr = tr-sr;
-const dc = tc-sc;
-
-if(piece==="♙") return dc===0 && dr===-1;
-if(piece==="♟") return dc===0 && dr===1;
-
-if(piece==="♖"||piece==="♜"){
-return sr===tr || sc===tc;
-}
-
-if(piece==="♗"||piece==="♝"){
-return Math.abs(dr)===Math.abs(dc);
-}
-
-if(piece==="♕"||piece==="♛"){
-return sr===tr || sc===tc || Math.abs(dr)===Math.abs(dc);
-}
-
-if(piece==="♔"||piece==="♚"){
-return Math.abs(dr)<=1 && Math.abs(dc)<=1;
-}
-
-if(piece==="♘"||piece==="♞"){
-return (
-(Math.abs(dr)===2 && Math.abs(dc)===1) ||
-(Math.abs(dr)===1 && Math.abs(dc)===2)
-);
-}
-
-return false;
-
-}
-
 function resetGame(){
-
-board = JSON.parse(JSON.stringify(startBoard));
-
-selected = null;
-
-turn = "white";
-
+board=JSON.parse(JSON.stringify(startBoard));
+selected=null;
+turn="white";
 renderBoard();
-
 }
 
 renderBoard();
