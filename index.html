@@ -3,45 +3,35 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Liquid Grave Chess Coach V2</title>
+<title>Liquid Grave Chess Coach V3</title>
 <style>
 body{margin:0;background:#071226;color:white;font-family:Arial,sans-serif;padding:20px}
 h1{text-align:center;color:#facc15;margin-bottom:20px}
-.container{display:flex;gap:30px;flex-wrap:wrap;justify-content:center}
-#board{display:grid;grid-template-columns:repeat(8,70px);border:4px solid #333;box-shadow:0 0 20px rgba(0,0,0,.4)}
-.square{width:70px;height:70px;display:flex;align-items:center;justify-content:center;font-size:42px;cursor:pointer;transition:.2s}
-.light{background:#f0d9b5}.dark{background:#b58863}.selected{outline:4px solid yellow}
-.white-piece{color:#fff;text-shadow:0 0 2px #000,0 0 5px #000}
-.black-piece{color:#000;text-shadow:0 0 2px #fff}
-.side-panel{background:#1e293b;padding:20px;border-radius:15px;width:280px;min-height:560px}
-button{padding:12px 18px;margin:8px;background:#facc15;border:none;border-radius:10px;font-weight:bold;cursor:pointer}
-button:hover{background:#fde047}
-#coach,#history,#openingBox{margin-top:15px;line-height:1.6;color:#d1d5db}
+.container{display:flex;gap:30px;justify-content:center;flex-wrap:wrap}
+#board{display:grid;grid-template-columns:repeat(8,70px);border:4px solid #333}
+.square{width:70px;height:70px;display:flex;align-items:center;justify-content:center;font-size:42px;cursor:pointer}
+.light{background:#f0d9b5}.dark{background:#b58863}
+.white-piece{color:#fff;text-shadow:0 0 3px #000}
+.black-piece{color:#000;text-shadow:0 0 3px #fff}
+.panel{background:#1e293b;padding:20px;border-radius:15px;width:280px}
+button{padding:10px 15px;margin:5px;background:#facc15;border:none;border-radius:8px;font-weight:bold}
 </style>
 </head>
 <body>
-<h1>♟ LIQUID GRAVE CHESS COACH V2</h1>
+<h1>♟ LIQUID GRAVE CHESS COACH</h1>
 <div class="container">
 <div>
 <div id="board"></div>
-<div>
 <button onclick="resetBoard()">Reset</button>
 <button onclick="undoMove()">Undo</button>
-<button onclick="trainOpening()">Train Opening</button>
-<button onclick="analyze()">Analyze</button>
 </div>
-</div>
-<div class="side-panel">
+<div class="panel">
 <h2>Coach</h2>
-<div id="coach">Welcome back, Von. Time to dominate.</div>
-<h2>Move History</h2>
-<div id="history"></div>
-<h2>Opening Trainer</h2>
-<div id="openingBox">Choose training mode.</div>
+<div id="coach">Ready for battle.</div>
 </div>
 </div>
 <script>
-const pieces=[
+const startingBoard=[
 ['♜','♞','♝','♛','♚','♝','♞','♜'],
 ['♟','♟','♟','♟','♟','♟','♟','♟'],
 ['','','','','','','',''],
@@ -51,9 +41,9 @@ const pieces=[
 ['♙','♙','♙','♙','♙','♙','♙','♙'],
 ['♖','♘','♗','♕','♔','♗','♘','♖']
 ];
-let board=JSON.parse(JSON.stringify(pieces));
-let selected=null;
+let board=JSON.parse(JSON.stringify(startingBoard));
 let history=[];
+let selected=null;
 function renderBoard(){
 const el=document.getElementById('board');
 el.innerHTML='';
@@ -61,43 +51,31 @@ for(let r=0;r<8;r++){
 for(let c=0;c<8;c++){
 const sq=document.createElement('div');
 sq.className='square '+((r+c)%2===0?'light':'dark');
-if(selected&&selected.r===r&&selected.c===c)sq.classList.add('selected');
 let piece=board[r][c];
 if(piece){
-let span=document.createElement('span');
+const span=document.createElement('span');
 span.textContent=piece;
-span.className=(r<2)?'black-piece':'white-piece';
+if(['♜','♞','♝','♛','♚','♟'].includes(piece)) span.className='black-piece';
+else span.className='white-piece';
 sq.appendChild(span);
 }
-sq.onclick=()=>selectSquare(r,c);
+sq.onclick=()=>movePiece(r,c);
 el.appendChild(sq);
 }}
-updateHistory();
 }
-function selectSquare(r,c){
+function movePiece(r,c){
 if(selected){
 history.push(JSON.parse(JSON.stringify(board)));
 board[r][c]=board[selected.r][selected.c];
 board[selected.r][selected.c]='';
 selected=null;
-coachMove();
 renderBoard();
 }else if(board[r][c]!==''){
 selected={r,c};
-renderBoard();
 }}
-function resetBoard(){board=JSON.parse(JSON.stringify(pieces));history=[];renderBoard();document.getElementById('coach').innerText='Board reset. Dominate the center.';}
+function resetBoard(){board=JSON.parse(JSON.stringify(startingBoard));renderBoard();}
 function undoMove(){if(history.length){board=history.pop();renderBoard();}}
-function updateHistory(){document.getElementById('history').innerHTML=history.map((_,i)=>'Move '+(i+1)).join('<br>');}
-function coachMove(){
-const tips=['Strong move. Control the center.','Develop your knights early.','Watch your king safety.','Look for tactics before moving.'];
-document.getElementById('coach').innerText=tips[Math.floor(Math.random()*tips.length)];
-}
-function trainOpening(){
-const ops=['Scotch: e4 e5 Nf3 Nc6 Nc3 Nf6 d4','Halloween Gambit: e4 e5 Nf3 Nc6 Nc3 Nf6 Nxe5','Grand Prix: e4 c5 Nc3 Nc6 f4'];
-document.getElementById('openingBox').innerText=ops[Math.floor(Math.random()*ops.length)];
-}
-function analyze(){
-document.getElementById('coach').innerText='Analysis: Focus on activity, king safety, and center control.';
-}
-render
+renderBoard();
+</script>
+</body>
+</html>
