@@ -13,32 +13,40 @@ color:white;
 font-family:Arial;
 text-align:center;
 padding:20px;
+margin:0;
 }
 
 h1{
 color:gold;
+font-size:48px;
 }
 
 #board{
 display:grid;
-grid-template-columns:repeat(8,60px);
-justify-content:center;
+grid-template-columns:repeat(8,1fr);
+width:90vw;
+max-width:480px;
 margin:20px auto;
-width:480px;
+border:3px solid gold;
 }
 
 .square{
-width:60px;
-height:60px;
-font-size:40px;
+aspect-ratio:1/1;
+width:100%;
+font-size:32px;
 display:flex;
 justify-content:center;
 align-items:center;
 cursor:pointer;
 }
 
-.light{background:#f0d9b5;}
-.dark{background:#b58863;}
+.light{
+background:#f0d9b5;
+}
+
+.dark{
+background:#b58863;
+}
 
 .selected{
 outline:3px solid yellow;
@@ -46,17 +54,18 @@ outline:3px solid yellow;
 
 #status{
 margin-top:20px;
-font-size:20px;
+font-size:28px;
 color:gold;
 }
 
 button{
-padding:10px 20px;
+padding:12px 24px;
 background:gold;
 border:none;
 font-weight:bold;
 margin-top:20px;
 border-radius:8px;
+font-size:20px;
 }
 </style>
 </head>
