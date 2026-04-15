@@ -4,6 +4,8 @@
 <title>Liquid Grave Chess Coach</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
 <style>
 body{
 background:#0b1020;
@@ -39,15 +41,17 @@ aspect-ratio:1/1;
 display:flex;
 justify-content:center;
 align-items:center;
-cursor:pointer;
 font-size:36px;
+cursor:pointer;
 position:relative;
 }
 
 .light{background:#f0d9b5;}
 .dark{background:#b58863;}
 
-.selected{outline:4px solid yellow;}
+.selected{
+outline:4px solid yellow;
+}
 
 .legal::after{
 content:'';
@@ -103,9 +107,6 @@ width:100%;
 <h2>Status</h2>
 <div id="status">White to Move</div>
 
-<h2>Captured</h2>
-<div id="captured"></div>
-
 <h2>Move History</h2>
 <div id="history"></div>
 </div>
@@ -114,240 +115,171 @@ width:100%;
 
 <script>
 
-const startBoard=[
-['br','bn','bb','bq','bk','bb','bn','br'],
-['bp','bp','bp','bp','bp','bp','bp','bp'],
-['','','','','','','',''],
-['','','','','','','',''],
-['','','','','','','',''],
-['','','','','','','',''],
-['wp','wp','wp','wp','wp','wp','wp','wp'],
-['wr','wn','wb','wq','wk','wb','wn','wr']
-];
+const chess = new Chess();
 
-const pieces={
-wp:'♙',wr:'♖',wn:'♘',wb:'♗',wq:'♕',wk:'♔',
-bp:'♟',br:'♜',bn:'♞',bb:'♝',bq:'♛',bk:'♚'
+const pieces = {
+'p':'♟','r':'♜','n':'♞','b':'♝','q':'♛','k':'♚',
+'P':'♙','R':'♖','N':'♘','B':'♗','Q':'♕','K':'♔'
 };
 
-let board=JSON.parse(JSON.stringify(startBoard));
 let selected=null;
-let turn='white';
-let captured=[];
-let history=[];
 
 function renderBoard(){
+
 const boardDiv=document.getElementById("board");
 boardDiv.innerHTML="";
+
+const currentBoard=chess.board();
 
 for(let r=0;r<8;r++){
 for(let c=0;c<8;c++){
 
 const square=document.createElement("div");
+
 square.classList.add("square");
 square.classList.add((r+c)%2===0?"light":"dark");
+
+const piece=currentBoard[r][c];
+
+if(piece){
+
+square.textContent=
+pieces[piece.color==="w"
+?piece.type.toUpperCase()
+:piece.type];
+
+square.classList.add(
+piece.color==="w"?"white":"black"
+);
+
+}
 
 if(selected&&selected.r===r&&selected.c===c){
 square.classList.add("selected");
 }
 
-const piece=board[r][c];
+if(selected){
 
-if(piece){
-square.textContent=pieces[piece];
-square.classList.add(piece[0]==='w'?"white":"black");
+const moves=chess.moves({
+square:toSquare(selected.r,selected.c),
+verbose:true
+});
+
+if(moves.some(m=>m.to===toSquare(r,c))){
+square.classList.add("legal");
 }
 
-if(selected&&validMove(selected.r,selected.c,r,c)){
-square.classList.add("legal");
 }
 
 square.onclick=()=>handleClick(r,c);
 
 boardDiv.appendChild(square);
+
 }
 }
 
-document.getElementById("captured").innerText=captured.join(" ");
-document.getElementById("history").innerHTML=history.join("<br>");
-document.getElementById("status").innerText=
-turn==="white"?"White to Move":"Black Thinking...";
+updateStatus();
+
+document.getElementById("history").innerHTML=
+chess.history().join("<br>");
+
+}
+
+function toSquare(r,c){
+return "abcdefgh"[c]+(8-r);
 }
 
 function handleClick(r,c){
 
-if(turn!=="white") return;
-
-const piece=board[r][c];
+const clickedSquare=toSquare(r,c);
 
 if(selected===null){
 
-if(piece&&piece[0]==='w'){
+const piece=chess.get(clickedSquare);
+
+if(piece&&piece.color==="w"){
 selected={r,c};
 }
 
 }else{
 
-if(validMove(selected.r,selected.c,r,c)){
+const move=chess.move({
+from:toSquare(selected.r,selected.c),
+to:clickedSquare,
+promotion:'q'
+});
 
-movePiece(selected.r,selected.c,r,c);
+selected=null;
 
-turn='black';
+if(move){
 
 renderBoard();
+
+if(!chess.isGameOver()){
 
 setTimeout(aiMove,500);
 
 }
 
-selected=null;
+return;
+
+}
+
 }
 
 renderBoard();
-}
-
-function movePiece(sr,sc,tr,tc){
-
-if(board[tr][tc]){
-captured.push(pieces[board[tr][tc]]);
-}
-
-history.push(board[sr][sc]+" → "+String.fromCharCode(97+tc)+(8-tr));
-
-board[tr][tc]=board[sr][sc];
-board[sr][sc]='';
 
 }
 
 function aiMove(){
 
-let possible=[];
+const moves=chess.moves();
 
-for(let sr=0;sr<8;sr++){
-for(let sc=0;sc<8;sc++){
+if(moves.length===0)return;
 
-if(board[sr][sc]&&board[sr][sc][0]==='b'){
+const randomMove=
+moves[Math.floor(Math.random()*moves.length)];
 
-for(let tr=0;tr<8;tr++){
-for(let tc=0;tc<8;tc++){
-
-if(validMove(sr,sc,tr,tc)){
-possible.push({sr,sc,tr,tc});
-}
-
-}
-}
-
-}
-}
-}
-
-if(possible.length>0){
-
-let move=possible[Math.floor(Math.random()*possible.length)];
-
-movePiece(move.sr,move.sc,move.tr,move.tc);
-
-}
-
-turn='white';
+chess.move(randomMove);
 
 renderBoard();
 
 }
 
-function validMove(sr,sc,tr,tc){
+function updateStatus(){
 
-const piece=board[sr][sc];
-const target=board[tr][tc];
+let status="";
 
-if(target&&target[0]===piece[0]) return false;
+if(chess.in_checkmate()){
 
-const dr=tr-sr;
-const dc=tc-sc;
+status="CHECKMATE";
 
-switch(piece){
+}
+else if(chess.in_check()){
 
-case 'wp':
-if(sc===tc&&dr===-1&&!target)return true;
-if(sr===6&&sc===tc&&dr===-2&&!target&&!board[5][sc])return true;
-if(Math.abs(dc)===1&&dr===-1&&target)return true;
-break;
+status="CHECK";
 
-case 'bp':
-if(sc===tc&&dr===1&&!target)return true;
-if(sr===1&&sc===tc&&dr===2&&!target&&!board[2][sc])return true;
-if(Math.abs(dc)===1&&dr===1&&target)return true;
-break;
+}
+else{
 
-case 'wr': case 'br':
-return straightClear(sr,sc,tr,tc);
+status=chess.turn()==="w"
+?"White to Move"
+:"Black Thinking";
 
-case 'wb': case 'bb':
-return diagonalClear(sr,sc,tr,tc);
-
-case 'wq': case 'bq':
-return straightClear(sr,sc,tr,tc)||diagonalClear(sr,sc,tr,tc);
-
-case 'wn': case 'bn':
-return (Math.abs(dr)===2&&Math.abs(dc)===1)||(Math.abs(dr)===1&&Math.abs(dc)===2);
-
-case 'wk': case 'bk':
-return Math.abs(dr)<=1&&Math.abs(dc)<=1;
 }
 
-return false;
-}
+document.getElementById("status").innerText=status;
 
-function straightClear(sr,sc,tr,tc){
-
-if(sr!==tr&&sc!==tc)return false;
-
-let stepR=Math.sign(tr-sr);
-let stepC=Math.sign(tc-sc);
-
-let r=sr+stepR;
-let c=sc+stepC;
-
-while(r!==tr||c!==tc){
-
-if(board[r][c])return false;
-
-r+=stepR;
-c+=stepC;
-}
-
-return true;
-}
-
-function diagonalClear(sr,sc,tr,tc){
-
-if(Math.abs(tr-sr)!==Math.abs(tc-sc))return false;
-
-let stepR=Math.sign(tr-sr);
-let stepC=Math.sign(tc-sc);
-
-let r=sr+stepR;
-let c=sc+stepC;
-
-while(r!==tr){
-
-if(board[r][c])return false;
-
-r+=stepR;
-c+=stepC;
-}
-
-return true;
 }
 
 function resetGame(){
-board=JSON.parse(JSON.stringify(startBoard));
+
+chess.reset();
+
 selected=null;
-turn='white';
-captured=[];
-history=[];
+
 renderBoard();
+
 }
 
 renderBoard();
