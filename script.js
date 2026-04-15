@@ -1,393 +1,200 @@
 const chess = new Chess();
 
+const engine = new Worker("stockfish.js");
+
 const pieces = {
-  'p':'♟','r':'♜','n':'♞','b':'♝','q':'♛','k':'♚',
-  'P':'♙','R':'♖','N':'♘','B':'♗','Q':'♕','K':'♔'
+'p':'♟','r':'♜','n':'♞','b':'♝','q':'♛','k':'♚',
+'P':'♙','R':'♖','N':'♘','B':'♗','Q':'♕','K':'♔'
 };
 
-let selected = null;
-let trainerMode = false;
-let trainerStep = 0;
-let trainerLine = [];
-let currentOpeningName = "";
-
-let voiceEnabled = false;
-
-const moveExplanations = {
-  "e4":"Excellent. Controls the center and opens lines for your bishop and queen.",
-  "e5":"Black mirrors your central control.",
-  "Nf3":"Develops your knight and attacks the e5 pawn.",
-  "Nc6":"Develops and defends the center.",
-  "Nc3":"Develops your knight toward the center.",
-  "Nf6":"Black develops and pressures e4.",
-  "d4":"Strong central break challenging black immediately.",
-  "Nxe5":"Aggressive sacrifice. The Halloween Gambit begins.",
-  "Bb5":"Develops bishop while pinning the knight.",
-  "g3":"Preparing kingside fianchetto.",
-  "O-O":"Kingside castle for safety."
-};
-
-let openingStats = JSON.parse(localStorage.getItem("openingStats")) || {
-  "Four Knights Scotch": {correct:0,mistakes:0},
-  "Halloween Gambit": {correct:0,mistakes:0},
-  "King's Indian Defense": {correct:0,mistakes:0},
-  "Alekhine Defense": {correct:0,mistakes:0}
-};
-
-const openings = {
-
-  1:{
-    name:"Four Knights Scotch",
-    line:[
-      ["e4"],["e5"],["Nf3"],["Nc6"],["Nc3"],["Nf6"],
-      ["d4"],["exd4"],["Nxd4"],["Bb4"],["Nxc6"]
-    ]
-  },
-
-  2:{
-    name:"Halloween Gambit",
-    line:[
-      ["e4"],["e5"],["Nf3"],["Nc6"],["Nc3"],["Nf6"],
-      ["Nxe5"],["Nxe5"],["d4"]
-    ]
-  },
-
-  3:{
-    name:"King's Indian Defense",
-    line:[
-      ["d4"],["Nf6"],["c4"],["g6"],["Nc3"],["Bg7"]
-    ]
-  },
-
-  4:{
-    name:"Alekhine Defense",
-    line:[
-      ["e4"],["Nf6"],["e5"],["Nd5"],["d4"]
-    ]
-  }
-
-};
-
-function speak(text){
-
-  if(!voiceEnabled) return;
-
-  speechSynthesis.cancel();
-
-  const utterance = new SpeechSynthesisUtterance(text);
-
-  utterance.rate = 1;
-  utterance.pitch = 1;
-
-  speechSynthesis.speak(utterance);
-}
-
-function toggleVoice(){
-
-  voiceEnabled = !voiceEnabled;
-
-  let msg = voiceEnabled
-    ? "Voice Coach Enabled"
-    : "Voice Coach Disabled";
-
-  document.getElementById("coach").innerText = msg;
-
-  speak(msg);
-}
-
-function saveStats(){
-  localStorage.setItem("openingStats", JSON.stringify(openingStats));
-}
+let selected=null;
 
 function renderBoard(){
 
-  const boardDiv = document.getElementById("board");
-  boardDiv.innerHTML = "";
+const boardDiv=document.getElementById("board");
 
-  const currentBoard = chess.board();
+boardDiv.innerHTML="";
 
-  for(let r=0;r<8;r++){
-    for(let c=0;c<8;c++){
+const currentBoard=chess.board();
 
-      const square = document.createElement("div");
+for(let r=0;r<8;r++){
+for(let c=0;c<8;c++){
 
-      square.classList.add("square");
-      square.classList.add((r+c)%2===0 ? "light" : "dark");
+const square=document.createElement("div");
 
-      const piece = currentBoard[r][c];
+square.classList.add("square");
 
-      if(piece){
+square.classList.add((r+c)%2===0?"light":"dark");
 
-        square.textContent =
-          pieces[
-            piece.color==="w"
-            ? piece.type.toUpperCase()
-            : piece.type
-          ];
+const piece=currentBoard[r][c];
 
-        square.classList.add(
-          piece.color==="w" ? "white" : "black"
-        );
+if(piece){
 
-      }
+square.textContent=
+pieces[piece.color==="w"
+?piece.type.toUpperCase()
+:piece.type];
 
-      if(selected && selected.r===r && selected.c===c){
-        square.classList.add("selected");
-      }
+square.classList.add(
+piece.color==="w"?"white":"black"
+);
 
-      if(selected){
-
-        const moves = chess.moves({
-          square: toSquare(selected.r,selected.c),
-          verbose:true
-        });
-
-        if(moves.some(m=>m.to===toSquare(r,c))){
-          square.classList.add("legal");
-        }
-
-      }
-
-      square.onclick = ()=>handleClick(r,c);
-
-      boardDiv.appendChild(square);
-
-    }
-  }
-
-  updateStatus();
-  updateProgress();
-
-  document.getElementById("history").innerHTML =
-    chess.history().join("<br>");
 }
 
-function updateProgress(){
+if(selected&&selected.r===r&&selected.c===c){
 
-  if(!currentOpeningName){
-    document.getElementById("progress").innerHTML =
-      "No opening selected.";
-    return;
-  }
+square.classList.add("selected");
 
-  let stats = openingStats[currentOpeningName];
+}
 
-  let total = stats.correct + stats.mistakes;
+if(selected){
 
-  let accuracy =
-    total===0 ? 100 :
-    Math.round((stats.correct/total)*100);
+const moves=chess.moves({
+square:toSquare(selected.r,selected.c),
+verbose:true
+});
 
-  document.getElementById("progress").innerHTML = `
-    Opening: ${currentOpeningName}<br>
-    Correct: ${stats.correct}<br>
-    Mistakes: ${stats.mistakes}<br>
-    Accuracy: ${accuracy}%
-  `;
+if(moves.some(m=>m.to===toSquare(r,c))){
+
+square.classList.add("legal");
+
+}
+
+}
+
+square.onclick=()=>handleClick(r,c);
+
+boardDiv.appendChild(square);
+
+}
+}
+
+document.getElementById("history").innerHTML=
+chess.history().join("<br>");
+
+updateStatus();
+
 }
 
 function toSquare(r,c){
-  return "abcdefgh"[c] + (8-r);
+
+return "abcdefgh"[c]+(8-r);
+
 }
 
 function handleClick(r,c){
 
-  const clickedSquare = toSquare(r,c);
+const clickedSquare=toSquare(r,c);
 
-  if(selected===null){
+if(selected===null){
 
-    const piece = chess.get(clickedSquare);
+const piece=chess.get(clickedSquare);
 
-    if(piece && piece.color==="w"){
-      selected = {r,c};
-      renderBoard();
-      return;
-    }
+if(piece&&piece.color==="w"){
 
-  } else {
+selected={r,c};
 
-    const move = chess.move({
-      from: toSquare(selected.r,selected.c),
-      to: clickedSquare,
-      promotion:'q'
-    });
+renderBoard();
 
-    selected = null;
-
-    if(move){
-
-      if(trainerMode){
-        handleTrainer(move);
-      }
-
-      else{
-        if(!chess.game_over()){
-          setTimeout(aiMove,500);
-        }
-      }
-
-    }
-
-    renderBoard();
-  }
+return;
 
 }
 
-function handleTrainer(move){
+}else{
 
-  let allowedMoves = trainerLine[trainerStep];
+const move=chess.move({
 
-  if(!allowedMoves.includes(move.san)){
+from:toSquare(selected.r,selected.c),
 
-    openingStats[currentOpeningName].mistakes++;
+to:clickedSquare,
 
-    let wrongText =
-      "Wrong move. Expected " + allowedMoves.join(" or ");
+promotion:'q'
 
-    document.getElementById("coach").innerText =
-      wrongText;
+});
 
-    speak(wrongText);
+selected=null;
 
-    chess.undo();
+if(move){
 
-    saveStats();
+renderBoard();
 
-    updateProgress();
+setTimeout(stockfishMove,500);
 
-    return;
-  }
-
-  openingStats[currentOpeningName].correct++;
-
-  let explanation =
-    moveExplanations[move.san] ||
-    ("Correct! " + move.san);
-
-  document.getElementById("coach").innerText =
-    explanation;
-
-  speak(explanation);
-
-  saveStats();
-
-  trainerStep++;
-
-  if(trainerStep>=trainerLine.length){
-
-    document.getElementById("coach").innerText =
-      "Training Complete!";
-
-    speak("Training Complete. Well done.");
-
-    trainerMode=false;
-
-    return;
-  }
-
-  setTimeout(()=>{
-
-    let enemyMove = trainerLine[trainerStep][0];
-
-    chess.move(enemyMove);
-
-    trainerStep++;
-
-    renderBoard();
-
-  },500);
+return;
 
 }
 
-function aiMove(){
+renderBoard();
 
-  const moves = chess.moves();
-
-  if(moves.length===0) return;
-
-  const move =
-    moves[Math.floor(Math.random()*moves.length)];
-
-  chess.move(move);
-
-  renderBoard();
 }
+
+}
+
+function stockfishMove(){
+
+engine.postMessage("position fen "+chess.fen());
+
+engine.postMessage("go depth 12");
+
+}
+
+engine.onmessage=function(event){
+
+if(event.data.startsWith("bestmove")){
+
+const bestMove=event.data.split(" ")[1];
+
+if(bestMove==="(none)") return;
+
+chess.move({
+from:bestMove.substring(0,2),
+to:bestMove.substring(2,4),
+promotion:'q'
+});
+
+renderBoard();
+
+}
+
+};
 
 function updateStatus(){
 
-  let status="";
+let status="";
 
-  if(chess.in_checkmate()){
-    status="CHECKMATE";
-  }
+if(chess.in_checkmate()){
 
-  else if(chess.in_check()){
-    status="CHECK";
-  }
+status="CHECKMATE";
 
-  else{
-    status=
-      chess.turn()==="w"
-      ?"White to Move"
-      :"Black Thinking";
-  }
+}
 
-  document.getElementById("status").innerText =
-    status;
+else if(chess.in_check()){
+
+status="CHECK";
+
+}
+
+else{
+
+status=
+chess.turn()==="w"
+?"White to Move"
+:"Stockfish Thinking";
+
+}
+
+document.getElementById("status").innerText=status;
+
 }
 
 function resetGame(){
 
-  chess.reset();
+chess.reset();
 
-  selected=null;
-  trainerMode=false;
-  trainerStep=0;
+selected=null;
 
-  document.getElementById("coach").innerText =
-    "Reset.";
+renderBoard();
 
-  renderBoard();
-}
-
-function clearStats(){
-
-  openingStats = {
-    "Four Knights Scotch": {correct:0,mistakes:0},
-    "Halloween Gambit": {correct:0,mistakes:0},
-    "King's Indian Defense": {correct:0,mistakes:0},
-    "Alekhine Defense": {correct:0,mistakes:0}
-  };
-
-  saveStats();
-
-  updateProgress();
-}
-
-function startOpeningTrainer(){
-
-  resetGame();
-
-  let choice = prompt(
-    "Choose Opening:\n\n1 = Four Knights Scotch\n2 = Halloween Gambit\n3 = King's Indian Defense\n4 = Alekhine Defense"
-  );
-
-  if(!openings[choice]) return;
-
-  trainerLine = openings[choice].line;
-
-  currentOpeningName = openings[choice].name;
-
-  trainerMode = true;
-
-  trainerStep = 0;
-
-  document.getElementById("coach").innerText =
-    "Trainer Started: " + currentOpeningName;
-
-  speak("Trainer Started for " + currentOpeningName);
-
-  renderBoard();
 }
 
 renderBoard();
