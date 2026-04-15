@@ -3,36 +3,44 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Liquid Grave Chess Coach V3</title>
+<title>Liquid Grave Chess Coach Ultimate</title>
 <style>
-body{margin:0;background:#071226;color:white;font-family:Arial,sans-serif;padding:20px}
-h1{text-align:center;color:#facc15;margin-bottom:20px}
-.container{display:flex;gap:30px;justify-content:center;flex-wrap:wrap}
-#board{display:grid;grid-template-columns:repeat(8,70px);border:4px solid #333}
-.square{width:70px;height:70px;display:flex;align-items:center;justify-content:center;font-size:42px;cursor:pointer}
-.light{background:#f0d9b5}.dark{background:#b58863}
-.white-piece{color:#fff;text-shadow:0 0 3px #000}
-.black-piece{color:#000;text-shadow:0 0 3px #fff}
-.panel{background:#1e293b;padding:20px;border-radius:15px;width:280px}
-button{padding:10px 15px;margin:5px;background:#facc15;border:none;border-radius:8px;font-weight:bold}
+body{margin:0;background:#0b1020;color:#fff;font-family:Arial,sans-serif;padding:20px}
+h1{text-align:center;color:#facc15;margin-bottom:20px;text-shadow:0 0 10px rgba(250,204,21,.5)}
+.container{display:flex;gap:25px;justify-content:center;flex-wrap:wrap}
+#board{display:grid;grid-template-columns:repeat(8,70px);border:4px solid #333;box-shadow:0 0 25px rgba(0,0,0,.5)}
+.square{width:70px;height:70px;display:flex;align-items:center;justify-content:center;font-size:42px;cursor:pointer;transition:.2s}
+.light{background:#f0d9b5}.dark{background:#b58863}.selected{outline:4px solid #facc15}.moveHint{box-shadow:inset 0 0 0 4px rgba(0,255,100,.6)}
+.white-piece{color:#fff;text-shadow:0 0 3px #000}.black-piece{color:#000;text-shadow:0 0 3px #fff}
+.panel{background:#1e293b;padding:20px;border-radius:15px;width:300px;min-height:550px}
+button{padding:12px 16px;margin:6px;background:#facc15;border:none;border-radius:10px;font-weight:bold;cursor:pointer}
+button:hover{background:#fde047}
+#history,#coach,#captured{margin-top:12px;color:#d1d5db;line-height:1.6}
 </style>
 </head>
 <body>
-<h1>♟ LIQUID GRAVE CHESS COACH</h1>
+<h1>♟ LIQUID GRAVE CHESS COACH ULTIMATE</h1>
 <div class="container">
 <div>
 <div id="board"></div>
+<div>
 <button onclick="resetBoard()">Reset</button>
 <button onclick="undoMove()">Undo</button>
+<button onclick="analyzeBoard()">Analyze</button>
+<button onclick="openingTrainer()">Opening Trainer</button>
+</div>
 </div>
 <div class="panel">
 <h2>Coach</h2>
-<div id="coach">Ready for battle.</div>
+<div id="coach">Welcome, Von. Play with precision.</div>
+<h2>Captured Pieces</h2>
+<div id="captured">None yet</div>
+<h2>Move History</h2>
+<div id="history">No moves yet</div>
 </div>
 </div>
 <script>
-const startingBoard=[
-['const startingBoard = [
+const START=[
 ['♜','♞','♝','♛','♚','♝','♞','♜'],
 ['♟','♟','♟','♟','♟','♟','♟','♟'],
 ['','','','','','','',''],
@@ -42,41 +50,52 @@ const startingBoard=[
 ['♙','♙','♙','♙','♙','♙','♙','♙'],
 ['♖','♘','♗','♕','♔','♗','♘','♖']
 ];
-];
-let board=JSON.parse(JSON.stringify(startingBoard));
-let history=[];
-let selected=null;
+let board=JSON.parse(JSON.stringify(START));
+let selected=null; let turn='white'; let history=[]; let snapshots=[]; let captured=[];
+const whitePieces=['♙','♖','♘','♗','♕','♔']; const blackPieces=['♟','♜','♞','♝','♛','♚'];
 function renderBoard(){
-const el=document.getElementById('board');
-el.innerHTML='';
+const el=document.getElementById('board'); el.innerHTML='';
 for(let r=0;r<8;r++){
-for(let c=0;c<8;c++){
-const sq=document.createElement('div');
-sq.className='square '+((r+c)%2===0?'light':'dark');
-let piece=board[r][c];
-if(piece){
-const span=document.createElement('span');
-span.textContent=piece;
-if(['♜','♞','♝','♛','♚','♟'].includes(piece)) span.className='black-piece';
-else span.className='white-piece';
-sq.appendChild(span);
+ for(let c=0;c<8;c++){
+  const sq=document.createElement('div');
+  sq.className='square '+((r+c)%2===0?'light':'dark');
+  if(selected&&selected.r===r&&selected.c===c)sq.classList.add('selected');
+  const piece=board[r][c];
+  if(piece){const span=document.createElement('span');span.textContent=piece;span.className=whitePieces.includes(piece)?'white-piece':'black-piece';sq.appendChild(span);}
+  sq.onclick=()=>handleClick(r,c);
+  el.appendChild(sq);
+ }
 }
-sq.onclick=()=>movePiece(r,c);
-el.appendChild(sq);
-}}
+updatePanels();
 }
-function movePiece(r,c){
+function handleClick(r,c){
 if(selected){
-history.push(JSON.parse(JSON.stringify(board)));
-board[r][c]=board[selected.r][selected.c];
-board[selected.r][selected.c]='';
-selected=null;
-renderBoard();
-}else if(board[r][c]!==''){
-selected={r,c};
-}}
-function resetBoard(){board=JSON.parse(JSON.stringify(startingBoard));renderBoard();}
-function undoMove(){if(history.length){board=history.pop();renderBoard();}}
+ const movingPiece=board[selected.r][selected.c];
+ if(!movingPiece){selected=null;renderBoard();return;}
+ if((turn==='white'&&!whitePieces.includes(movingPiece))||(turn==='black'&&!blackPieces.includes(movingPiece))){selected=null;renderBoard();return;}
+ snapshots.push(JSON.parse(JSON.stringify(board)));
+ if(board[r][c]) captured.push(board[r][c]);
+ board[r][c]=movingPiece;
+ board[selected.r][selected.c]='';
+ history.push(`${turn}: ${movingPiece} moved`);
+ turn=turn==='white'?'black':'white';
+ selected=null;
+ coachResponse();
+ renderBoard();
+}else if(board[r][c]){selected={r,c};renderBoard();}
+}
+function coachResponse(){
+const tips=['Control the center.','Develop your pieces quickly.','Protect your king.','Watch for tactics.','Improve your worst piece.'];
+document.getElementById('coach').innerText=tips[Math.floor(Math.random()*tips.length)];
+}
+function updatePanels(){
+document.getElementById('history').innerHTML=history.length?history.join('<br>'):'No moves yet';
+document.getElementById('captured').innerText=captured.length?captured.join(' '):'None yet';
+}
+function resetBoard(){board=JSON.parse(JSON.stringify(START));selected=null;turn='white';history=[];snapshots=[];captured=[];renderBoard();}
+function undoMove(){if(snapshots.length){board=snapshots.pop();history.pop();turn=turn==='white'?'black':'white';captured.pop();renderBoard();}}
+function analyzeBoard(){document.getElementById('coach').innerText='Analysis: Focus on king safety, center control, and active pieces.';}
+function openingTrainer(){document.getElementById('coach').innerText='Scotch Opening: 1.e4 e5 2.Nf3 Nc6 3.Nc3 Nf6 4.d4';}
 renderBoard();
 </script>
 </body>
