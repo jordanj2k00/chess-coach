@@ -4,25 +4,28 @@ const pieces = {
   'p':'♟','r':'♜','n':'♞','b':'♝','q':'♛','k':'♚',
   'P':'♙','R':'♖','N':'♘','B':'♗','Q':'♕','K':'♔'
 };
-let voiceEnabled = false;
-
-const moveExplanations = {
-  "e4":"Excellent. Controls the center and opens lines for your bishop and queen.",
-  "Nf3":"Good. Develops your knight and attacks the e5 pawn.",
-  "Nc3":"Develops your knight toward the center.",
-  "d4":"Strong center break. This challenges black immediately.",
-  "Nxe5":"Aggressive sacrifice. The Halloween Gambit begins.",
-  "Bb5":"Develops bishop while pinning the knight.",
-  "g3":"Preparing kingside fianchetto.",
-  "O-O":"Kingside castle for safety."
-};
 
 let selected = null;
 let trainerMode = false;
 let trainerStep = 0;
 let trainerLine = [];
-
 let currentOpeningName = "";
+
+let voiceEnabled = false;
+
+const moveExplanations = {
+  "e4":"Excellent. Controls the center and opens lines for your bishop and queen.",
+  "e5":"Black mirrors your central control.",
+  "Nf3":"Develops your knight and attacks the e5 pawn.",
+  "Nc6":"Develops and defends the center.",
+  "Nc3":"Develops your knight toward the center.",
+  "Nf6":"Black develops and pressures e4.",
+  "d4":"Strong central break challenging black immediately.",
+  "Nxe5":"Aggressive sacrifice. The Halloween Gambit begins.",
+  "Bb5":"Develops bishop while pinning the knight.",
+  "g3":"Preparing kingside fianchetto.",
+  "O-O":"Kingside castle for safety."
+};
 
 let openingStats = JSON.parse(localStorage.getItem("openingStats")) || {
   "Four Knights Scotch": {correct:0,mistakes:0},
@@ -32,6 +35,7 @@ let openingStats = JSON.parse(localStorage.getItem("openingStats")) || {
 };
 
 const openings = {
+
   1:{
     name:"Four Knights Scotch",
     line:[
@@ -61,7 +65,35 @@ const openings = {
       ["e4"],["Nf6"],["e5"],["Nd5"],["d4"]
     ]
   }
+
 };
+
+function speak(text){
+
+  if(!voiceEnabled) return;
+
+  speechSynthesis.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(text);
+
+  utterance.rate = 1;
+  utterance.pitch = 1;
+
+  speechSynthesis.speak(utterance);
+}
+
+function toggleVoice(){
+
+  voiceEnabled = !voiceEnabled;
+
+  let msg = voiceEnabled
+    ? "Voice Coach Enabled"
+    : "Voice Coach Disabled";
+
+  document.getElementById("coach").innerText = msg;
+
+  speak(msg);
+}
 
 function saveStats(){
   localStorage.setItem("openingStats", JSON.stringify(openingStats));
@@ -85,6 +117,7 @@ function renderBoard(){
       const piece = currentBoard[r][c];
 
       if(piece){
+
         square.textContent =
           pieces[
             piece.color==="w"
@@ -95,6 +128,7 @@ function renderBoard(){
         square.classList.add(
           piece.color==="w" ? "white" : "black"
         );
+
       }
 
       if(selected && selected.r===r && selected.c===c){
@@ -131,7 +165,8 @@ function renderBoard(){
 function updateProgress(){
 
   if(!currentOpeningName){
-    document.getElementById("progress").innerHTML = "No opening selected.";
+    document.getElementById("progress").innerHTML =
+      "No opening selected.";
     return;
   }
 
@@ -183,12 +218,12 @@ function handleClick(r,c){
 
       if(trainerMode){
         handleTrainer(move);
-      } else {
+      }
 
+      else{
         if(!chess.game_over()){
           setTimeout(aiMove,500);
         }
-
       }
 
     }
@@ -206,12 +241,18 @@ function handleTrainer(move){
 
     openingStats[currentOpeningName].mistakes++;
 
+    let wrongText =
+      "Wrong move. Expected " + allowedMoves.join(" or ");
+
     document.getElementById("coach").innerText =
-      "Wrong move. Expected: " + allowedMoves.join(" / ");
+      wrongText;
+
+    speak(wrongText);
 
     chess.undo();
 
     saveStats();
+
     updateProgress();
 
     return;
@@ -219,8 +260,14 @@ function handleTrainer(move){
 
   openingStats[currentOpeningName].correct++;
 
+  let explanation =
+    moveExplanations[move.san] ||
+    ("Correct! " + move.san);
+
   document.getElementById("coach").innerText =
-    "Correct! " + move.san;
+    explanation;
+
+  speak(explanation);
 
   saveStats();
 
@@ -230,6 +277,8 @@ function handleTrainer(move){
 
     document.getElementById("coach").innerText =
       "Training Complete!";
+
+    speak("Training Complete. Well done.");
 
     trainerMode=false;
 
@@ -283,7 +332,8 @@ function updateStatus(){
       :"Black Thinking";
   }
 
-  document.getElementById("status").innerText = status;
+  document.getElementById("status").innerText =
+    status;
 }
 
 function resetGame(){
@@ -294,7 +344,8 @@ function resetGame(){
   trainerMode=false;
   trainerStep=0;
 
-  document.getElementById("coach").innerText = "Reset.";
+  document.getElementById("coach").innerText =
+    "Reset.";
 
   renderBoard();
 }
@@ -322,31 +373,6 @@ function startOpeningTrainer(){
   );
 
   if(!openings[choice]) return;
-  function speak(text){
-
-  if(!voiceEnabled) return;
-
-  const utterance = new SpeechSynthesisUtterance(text);
-
-  utterance.rate = 1;
-  utterance.pitch = 1;
-
-  speechSynthesis.speak(utterance);
-
-}
-
-function toggleVoice(){
-
-  voiceEnabled = !voiceEnabled;
-
-  document.getElementById("coach").innerText =
-    voiceEnabled
-    ? "Voice Coach Enabled"
-    : "Voice Coach Disabled";
-
-  speak(document.getElementById("coach").innerText);
-
-}
 
   trainerLine = openings[choice].line;
 
@@ -358,6 +384,8 @@ function toggleVoice(){
 
   document.getElementById("coach").innerText =
     "Trainer Started: " + currentOpeningName;
+
+  speak("Trainer Started for " + currentOpeningName);
 
   renderBoard();
 }
