@@ -130,85 +130,69 @@ const pieces = {
 'P':'♙','R':'♖','N':'♘','B':'♗','Q':'♕','K':'♔'
 };
 
-let selected = null;
+let selected=null;
+let trainerMode=false;
+let trainerIndex=0;
+let currentOpening=[];
+let currentExplanations=[];
 
-let trainerMode = false;
-
-let trainerIndex = 0;
-
-let currentOpening = [];
-
-const openings = {
+const openings={
 
 1:[
-// Four Knights Scotch
-"e4",
-"e5",
-"Nf3",
-"Nc6",
-"Nc3",
-"Nf6",
-"d4",
-"exd4",
-"Nxd4"
+"e4","e5","Nf3","Nc6","Nc3","Nf6","d4","exd4","Nxd4"
 ],
 
 2:[
-// Halloween Gambit
-"e4",
-"e5",
-"Nf3",
-"Nc6",
-"Nc3",
-"Nf6",
-"Nxe5"
+"e4","e5","Nf3","Nc6","Nc3","Nf6","Nxe5"
 ],
 
 3:[
-// King's Indian Defense
-"d4",
-"Nf6",
-"c4",
-"g6",
-"Nc3",
-"Bg7"
+"d4","Nf6","c4","g6","Nc3","Bg7"
 ],
 
 4:[
-// Alekhine Defense
-"e4",
-"Nf6",
-"e5",
-"Nd5",
-"d4"
+"e4","Nf6","e5","Nd5","d4"
 ]
 
 };
 
+const explanations={
+
+"e4":"Controls the center and opens lines for your bishop and queen.",
+"e5":"Black mirrors your center control.",
+"Nf3":"Develops your knight and attacks the e5 pawn.",
+"Nc6":"Black defends the e5 pawn while developing.",
+"Nc3":"Develops another knight toward the center.",
+"Nf6":"Black develops and pressures e4.",
+"d4":"Challenges the center and begins the Scotch structure.",
+"exd4":"Black accepts the center tension.",
+"Nxd4":"Recaptures and centralizes your knight.",
+"Nxe5":"The Halloween Gambit sacrifices a knight for rapid attack.",
+"g6":"Preparing kingside fianchetto for King's Indian.",
+"Bg7":"Strong bishop on long diagonal.",
+"Nd5":"Alekhine retreats while baiting overextension."
+};
 
 function renderBoard(){
 
-const boardDiv = document.getElementById("board");
+const boardDiv=document.getElementById("board");
+boardDiv.innerHTML="";
 
-boardDiv.innerHTML = "";
-
-const currentBoard = chess.board();
+const currentBoard=chess.board();
 
 for(let r=0;r<8;r++){
-
 for(let c=0;c<8;c++){
 
-const square = document.createElement("div");
+const square=document.createElement("div");
 
 square.classList.add("square");
-
 square.classList.add((r+c)%2===0?"light":"dark");
 
-const piece = currentBoard[r][c];
+const piece=currentBoard[r][c];
 
 if(piece){
 
-square.textContent =
+square.textContent=
 pieces[piece.color==="w"
 ?piece.type.toUpperCase()
 :piece.type];
@@ -220,9 +204,7 @@ piece.color==="w"?"white":"black"
 }
 
 if(selected&&selected.r===r&&selected.c===c){
-
 square.classList.add("selected");
-
 }
 
 if(selected){
@@ -233,9 +215,7 @@ verbose:true
 });
 
 if(moves.some(m=>m.to===toSquare(r,c))){
-
 square.classList.add("legal");
-
 }
 
 }
@@ -245,46 +225,37 @@ square.onclick=()=>handleClick(r,c);
 boardDiv.appendChild(square);
 
 }
-
 }
 
 updateStatus();
 
-document.getElementById("history").innerHTML =
+document.getElementById("history").innerHTML=
 chess.history().join("<br>");
 
 }
 
 function toSquare(r,c){
-
 return "abcdefgh"[c]+(8-r);
-
 }
 
 function handleClick(r,c){
 
-const clickedSquare = toSquare(r,c);
+const clickedSquare=toSquare(r,c);
 
 if(selected===null){
 
-const piece = chess.get(clickedSquare);
+const piece=chess.get(clickedSquare);
 
 if(piece&&piece.color==="w"){
-
 selected={r,c};
-
 }
 
 }else{
 
-const move = chess.move({
-
+const move=chess.move({
 from:toSquare(selected.r,selected.c),
-
 to:clickedSquare,
-
 promotion:'q'
-
 });
 
 selected=null;
@@ -295,28 +266,43 @@ if(trainerMode){
 
 if(move.san===currentOpening[trainerIndex]){
 
-trainerIndex++;
+document.getElementById("coach").innerText=
+explanations[move.san]||"Correct.";
 
-document.getElementById("coach").innerText="Correct.";
+trainerIndex++;
 
 if(trainerIndex<currentOpening.length){
 
 setTimeout(()=>{
 
-chess.move(currentOpening[trainerIndex]);
+let nextMove=currentOpening[trainerIndex];
+
+chess.move(nextMove);
 
 trainerIndex++;
 
 renderBoard();
 
+if(trainerIndex>=currentOpening.length){
+
+document.getElementById("coach").innerText=
+"Opening Complete!";
+
+}
+
 },500);
+
+}else{
+
+document.getElementById("coach").innerText=
+"Opening Complete!";
 
 }
 
 }else{
 
 document.getElementById("coach").innerText=
-"Wrong move. Expected: "+currentOpening[trainerIndex];
+"Wrong Move.\nExpected: "+currentOpening[trainerIndex];
 
 chess.undo();
 
@@ -327,12 +313,9 @@ chess.undo();
 renderBoard();
 
 if(!chess.game_over()){
-
 setTimeout(aiMove,500);
-
-}
-
 return;
+}
 
 }
 
@@ -346,11 +329,11 @@ renderBoard();
 
 function aiMove(){
 
-const moves = chess.moves();
+const moves=chess.moves();
 
 if(moves.length===0)return;
 
-const randomMove =
+const randomMove=
 moves[Math.floor(Math.random()*moves.length)];
 
 chess.move(randomMove);
@@ -364,23 +347,18 @@ function updateStatus(){
 let status="";
 
 if(chess.in_checkmate()){
-
 status="CHECKMATE";
-
 }
 
 else if(chess.in_check()){
-
 status="CHECK";
-
 }
 
 else{
-
-status=chess.turn()==="w"
+status=
+chess.turn()==="w"
 ?"White to Move"
 :"Black Thinking";
-
 }
 
 document.getElementById("status").innerText=status;
@@ -392,9 +370,7 @@ function resetGame(){
 chess.reset();
 
 selected=null;
-
 trainerMode=false;
-
 trainerIndex=0;
 
 document.getElementById("coach").innerText="Reset.";
@@ -407,19 +383,19 @@ function startOpeningTrainer(){
 
 resetGame();
 
-let choice = prompt(
+let choice=prompt(
 "Choose Opening:\n\n1 = Four Knights Scotch\n2 = Halloween Gambit\n3 = King's Indian Defense\n4 = Alekhine Defense"
 );
 
 if(!openings[choice]) return;
 
-currentOpening = openings[choice];
+currentOpening=openings[choice];
 
-trainerMode = true;
+trainerMode=true;
 
-trainerIndex = 0;
+trainerIndex=0;
 
-document.getElementById("coach").innerText =
+document.getElementById("coach").innerText=
 "Training Started.";
 
 }
