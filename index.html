@@ -37,13 +37,8 @@ cursor:pointer;
 font-size:38px;
 }
 
-.light{
-background:#f0d9b5;
-}
-
-.dark{
-background:#b58863;
-}
+.light{background:#f0d9b5;}
+.dark{background:#b58863;}
 
 .selected{
 outline:4px solid yellow;
@@ -130,27 +125,17 @@ const piece=board[r][c];
 if(piece){
 square.textContent=pieces[piece];
 
-if(piece[0]==='w'){
-square.classList.add("white");
-}else{
-square.classList.add("black");
-}
+square.classList.add(piece[0]==='w'?"white":"black");
 }
 
 square.onclick=()=>handleClick(r,c);
 
 boardDiv.appendChild(square);
-
 }
 }
 
 document.getElementById("status").innerText=
 turn==="white"?"White to Move":"Black to Move";
-}
-
-function validTurn(piece){
-if(turn==="white") return piece[0]==='w';
-return piece[0]==='b';
 }
 
 function handleClick(r,c){
@@ -159,29 +144,124 @@ const piece=board[r][c];
 
 if(selected===null){
 
-if(piece && validTurn(piece)){
+if(piece && piece[0]===turn[0]){
 selected={r,c};
 }
 
 }else{
 
+if(validMove(selected.r,selected.c,r,c)){
+
 board[r][c]=board[selected.r][selected.c];
 board[selected.r][selected.c]="";
 
 turn=turn==="white"?"black":"white";
+}
 
 selected=null;
-
 }
 
 renderBoard();
+}
 
+function validMove(sr,sc,tr,tc){
+
+const piece=board[sr][sc];
+const target=board[tr][tc];
+
+if(target && target[0]===piece[0]) return false;
+
+const dr=tr-sr;
+const dc=tc-sc;
+
+switch(piece){
+
+case 'wp':
+if(sc===tc && dr===-1 && !target) return true;
+if(sr===6 && sc===tc && dr===-2 && !target && !board[5][sc]) return true;
+if(Math.abs(dc)===1 && dr===-1 && target && target[0]==='b') return true;
+break;
+
+case 'bp':
+if(sc===tc && dr===1 && !target) return true;
+if(sr===1 && sc===tc && dr===2 && !target && !board[2][sc]) return true;
+if(Math.abs(dc)===1 && dr===1 && target && target[0]==='w') return true;
+break;
+
+case 'wr':
+case 'br':
+return straightClear(sr,sc,tr,tc);
+
+case 'wb':
+case 'bb':
+return diagonalClear(sr,sc,tr,tc);
+
+case 'wq':
+case 'bq':
+return straightClear(sr,sc,tr,tc)||diagonalClear(sr,sc,tr,tc);
+
+case 'wn':
+case 'bn':
+return (Math.abs(dr)===2&&Math.abs(dc)===1)||(Math.abs(dr)===1&&Math.abs(dc)===2);
+
+case 'wk':
+case 'bk':
+return Math.abs(dr)<=1&&Math.abs(dc)<=1;
+}
+
+return false;
+}
+
+function straightClear(sr,sc,tr,tc){
+
+if(sr!==tr && sc!==tc) return false;
+
+let stepR=Math.sign(tr-sr);
+let stepC=Math.sign(tc-sc);
+
+let r=sr+stepR;
+let c=sc+stepC;
+
+while(r!==tr || c!==tc){
+
+if(board[r][c]) return false;
+
+r+=stepR;
+c+=stepC;
+}
+
+return true;
+}
+
+function diagonalClear(sr,sc,tr,tc){
+
+if(Math.abs(tr-sr)!==Math.abs(tc-sc)) return false;
+
+let stepR=Math.sign(tr-sr);
+let stepC=Math.sign(tc-sc);
+
+let r=sr+stepR;
+let c=sc+stepC;
+
+while(r!==tr){
+
+if(board[r][c]) return false;
+
+r+=stepR;
+c+=stepC;
+}
+
+return true;
 }
 
 function resetGame(){
+
 board=JSON.parse(JSON.stringify(startBoard));
+
 selected=null;
+
 turn="white";
+
 renderBoard();
 }
 
