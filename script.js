@@ -322,6 +322,31 @@ function startOpeningTrainer(){
   );
 
   if(!openings[choice]) return;
+  function speak(text){
+
+  if(!voiceEnabled) return;
+
+  const utterance = new SpeechSynthesisUtterance(text);
+
+  utterance.rate = 1;
+  utterance.pitch = 1;
+
+  speechSynthesis.speak(utterance);
+
+}
+
+function toggleVoice(){
+
+  voiceEnabled = !voiceEnabled;
+
+  document.getElementById("coach").innerText =
+    voiceEnabled
+    ? "Voice Coach Enabled"
+    : "Voice Coach Disabled";
+
+  speak(document.getElementById("coach").innerText);
+
+}
 
   trainerLine = openings[choice].line;
 
