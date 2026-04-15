@@ -9,14 +9,21 @@ body{
 background:#0b1020;
 color:white;
 font-family:Arial;
-text-align:center;
-padding:20px;
 margin:0;
+padding:20px;
 }
 
 h1{
+text-align:center;
 color:gold;
 font-size:42px;
+}
+
+.container{
+display:flex;
+flex-wrap:wrap;
+justify-content:center;
+gap:20px;
 }
 
 #board{
@@ -24,7 +31,6 @@ display:grid;
 grid-template-columns:repeat(8,1fr);
 width:90vw;
 max-width:480px;
-margin:20px auto;
 border:4px solid gold;
 }
 
@@ -34,7 +40,8 @@ display:flex;
 justify-content:center;
 align-items:center;
 cursor:pointer;
-font-size:38px;
+font-size:36px;
+position:relative;
 }
 
 .light{background:#f0d9b5;}
@@ -44,20 +51,13 @@ font-size:38px;
 outline:4px solid yellow;
 }
 
-#status{
-margin-top:20px;
-font-size:28px;
-color:gold;
-}
-
-button{
-padding:12px 24px;
-background:gold;
-border:none;
-font-weight:bold;
-margin-top:20px;
-border-radius:8px;
-font-size:20px;
+.legal::after{
+content:'';
+width:15px;
+height:15px;
+background:rgba(0,255,0,.7);
+border-radius:50%;
+position:absolute;
 }
 
 .white{
@@ -69,6 +69,25 @@ text-shadow:2px 2px 4px black;
 color:black;
 text-shadow:1px 1px 2px white;
 }
+
+.panel{
+background:#1a2238;
+padding:20px;
+border-radius:10px;
+width:250px;
+}
+
+button{
+padding:12px 24px;
+background:gold;
+border:none;
+font-weight:bold;
+margin-top:20px;
+border-radius:8px;
+font-size:20px;
+width:100%;
+}
+
 </style>
 </head>
 
@@ -76,15 +95,29 @@ text-shadow:1px 1px 2px white;
 
 <h1>♟ Liquid Grave Chess Coach</h1>
 
-<div id="board"></div>
+<div class="container">
 
+<div>
+<div id="board"></div>
+<button onclick="resetGame()">Reset Game</button>
+</div>
+
+<div class="panel">
+<h2>Status</h2>
 <div id="status">White to Move</div>
 
-<button onclick="resetGame()">Reset Game</button>
+<h2>Captured</h2>
+<div id="captured"></div>
+
+<h2>Move History</h2>
+<div id="history"></div>
+</div>
+
+</div>
 
 <script>
 
-const startBoard = [
+const startBoard=[
 ['br','bn','bb','bq','bk','bb','bn','br'],
 ['bp','bp','bp','bp','bp','bp','bp','bp'],
 ['','','','','','','',''],
@@ -95,28 +128,30 @@ const startBoard = [
 ['wr','wn','wb','wq','wk','wb','wn','wr']
 ];
 
-const pieces = {
-wp:'♙', wr:'♖', wn:'♘', wb:'♗', wq:'♕', wk:'♔',
-bp:'♟', br:'♜', bn:'♞', bb:'♝', bq:'♛', bk:'♚'
+const pieces={
+wp:'♙',wr:'♖',wn:'♘',wb:'♗',wq:'♕',wk:'♔',
+bp:'♟',br:'♜',bn:'♞',bb:'♝',bq:'♛',bk:'♚'
 };
 
-let board = JSON.parse(JSON.stringify(startBoard));
-let selected = null;
-let turn = "white";
+let board=JSON.parse(JSON.stringify(startBoard));
+let selected=null;
+let turn='white';
+let captured=[];
+let history=[];
+let gameOver=false;
 
 function renderBoard(){
-const boardDiv = document.getElementById("board");
+const boardDiv=document.getElementById("board");
 boardDiv.innerHTML="";
 
 for(let r=0;r<8;r++){
 for(let c=0;c<8;c++){
 
 const square=document.createElement("div");
-
 square.classList.add("square");
 square.classList.add((r+c)%2===0?"light":"dark");
 
-if(selected && selected.r===r && selected.c===c){
+if(selected&&selected.r===r&&selected.c===c){
 square.classList.add("selected");
 }
 
@@ -124,27 +159,33 @@ const piece=board[r][c];
 
 if(piece){
 square.textContent=pieces[piece];
-
 square.classList.add(piece[0]==='w'?"white":"black");
+}
+
+if(selected&&validMove(selected.r,selected.c,r,c)){
+square.classList.add("legal");
 }
 
 square.onclick=()=>handleClick(r,c);
 
 boardDiv.appendChild(square);
+
 }
 }
 
-document.getElementById("status").innerText=
-turn==="white"?"White to Move":"Black to Move";
+document.getElementById("captured").innerText=captured.join(" ");
+document.getElementById("history").innerHTML=history.join("<br>");
 }
 
 function handleClick(r,c){
+
+if(gameOver)return;
 
 const piece=board[r][c];
 
 if(selected===null){
 
-if(piece && piece[0]===turn[0]){
+if(piece&&piece[0]===turn[0]){
 selected={r,c};
 }
 
@@ -152,10 +193,19 @@ selected={r,c};
 
 if(validMove(selected.r,selected.c,r,c)){
 
-board[r][c]=board[selected.r][selected.c];
-board[selected.r][selected.c]="";
+if(board[r][c]){
+captured.push(pieces[board[r][c]]);
+}
 
-turn=turn==="white"?"black":"white";
+history.push(board[selected.r][selected.c]+" → "+String.fromCharCode(97+c)+(8-r));
+
+board[r][c]=board[selected.r][selected.c];
+board[selected.r][selected.c]='';
+
+turn=turn==='white'?'black':'white';
+
+checkGameState();
+
 }
 
 selected=null;
@@ -169,7 +219,7 @@ function validMove(sr,sc,tr,tc){
 const piece=board[sr][sc];
 const target=board[tr][tc];
 
-if(target && target[0]===piece[0]) return false;
+if(target&&target[0]===piece[0]) return false;
 
 const dr=tr-sr;
 const dc=tc-sc;
@@ -177,36 +227,32 @@ const dc=tc-sc;
 switch(piece){
 
 case 'wp':
-if(sc===tc && dr===-1 && !target) return true;
-if(sr===6 && sc===tc && dr===-2 && !target && !board[5][sc]) return true;
-if(Math.abs(dc)===1 && dr===-1 && target && target[0]==='b') return true;
+if(sc===tc&&dr===-1&&!target)return true;
+if(sr===6&&sc===tc&&dr===-2&&!target&&!board[5][sc])return true;
+if(Math.abs(dc)===1&&dr===-1&&target)return true;
 break;
 
 case 'bp':
-if(sc===tc && dr===1 && !target) return true;
-if(sr===1 && sc===tc && dr===2 && !target && !board[2][sc]) return true;
-if(Math.abs(dc)===1 && dr===1 && target && target[0]==='w') return true;
+if(sc===tc&&dr===1&&!target)return true;
+if(sr===1&&sc===tc&&dr===2&&!target&&!board[2][sc])return true;
+if(Math.abs(dc)===1&&dr===1&&target)return true;
 break;
 
-case 'wr':
-case 'br':
+case 'wr': case 'br':
 return straightClear(sr,sc,tr,tc);
 
-case 'wb':
-case 'bb':
+case 'wb': case 'bb':
 return diagonalClear(sr,sc,tr,tc);
 
-case 'wq':
-case 'bq':
+case 'wq': case 'bq':
 return straightClear(sr,sc,tr,tc)||diagonalClear(sr,sc,tr,tc);
 
-case 'wn':
-case 'bn':
+case 'wn': case 'bn':
 return (Math.abs(dr)===2&&Math.abs(dc)===1)||(Math.abs(dr)===1&&Math.abs(dc)===2);
 
-case 'wk':
-case 'bk':
+case 'wk': case 'bk':
 return Math.abs(dr)<=1&&Math.abs(dc)<=1;
+
 }
 
 return false;
@@ -214,7 +260,7 @@ return false;
 
 function straightClear(sr,sc,tr,tc){
 
-if(sr!==tr && sc!==tc) return false;
+if(sr!==tr&&sc!==tc)return false;
 
 let stepR=Math.sign(tr-sr);
 let stepC=Math.sign(tc-sc);
@@ -222,9 +268,9 @@ let stepC=Math.sign(tc-sc);
 let r=sr+stepR;
 let c=sc+stepC;
 
-while(r!==tr || c!==tc){
+while(r!==tr||c!==tc){
 
-if(board[r][c]) return false;
+if(board[r][c])return false;
 
 r+=stepR;
 c+=stepC;
@@ -235,7 +281,7 @@ return true;
 
 function diagonalClear(sr,sc,tr,tc){
 
-if(Math.abs(tr-sr)!==Math.abs(tc-sc)) return false;
+if(Math.abs(tr-sr)!==Math.abs(tc-sc))return false;
 
 let stepR=Math.sign(tr-sr);
 let stepC=Math.sign(tc-sc);
@@ -245,7 +291,7 @@ let c=sc+stepC;
 
 while(r!==tr){
 
-if(board[r][c]) return false;
+if(board[r][c])return false;
 
 r+=stepR;
 c+=stepC;
@@ -254,15 +300,36 @@ c+=stepC;
 return true;
 }
 
+function checkGameState(){
+
+let kings=0;
+
+for(let row of board){
+for(let piece of row){
+if(piece==='wk'||piece==='bk') kings++;
+}
+}
+
+if(kings<2){
+gameOver=true;
+document.getElementById("status").innerText="CHECKMATE!";
+return;
+}
+
+document.getElementById("status").innerText=
+turn==="white"?"White to Move":"Black to Move";
+
+}
+
 function resetGame(){
-
 board=JSON.parse(JSON.stringify(startBoard));
-
 selected=null;
-
-turn="white";
-
+turn='white';
+captured=[];
+history=[];
+gameOver=false;
 renderBoard();
+document.getElementById("status").innerText="White to Move";
 }
 
 renderBoard();
