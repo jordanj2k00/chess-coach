@@ -100,15 +100,23 @@ width:100%;
 
 <div>
 <div id="board"></div>
+
 <button onclick="resetGame()">Reset Game</button>
+
+<button onclick="startOpeningTrainer()">Opening Trainer</button>
 </div>
 
 <div class="panel">
+
 <h2>Status</h2>
 <div id="status">White to Move</div>
 
+<h2>Coach</h2>
+<div id="coach">Welcome.</div>
+
 <h2>Move History</h2>
 <div id="history"></div>
+
 </div>
 
 </div>
@@ -122,28 +130,78 @@ const pieces = {
 'P':'♙','R':'♖','N':'♘','B':'♗','Q':'♕','K':'♔'
 };
 
-let selected=null;
+let selected = null;
+
+let trainerMode = false;
+
+let trainerIndex = 0;
+
+let currentOpening = [];
+
+const openings = {
+
+1:[
+"e4",
+"e5",
+"Nf3",
+"Nc6",
+"Nc3",
+"Nf6",
+"d4"
+],
+
+2:[
+"e4",
+"e5",
+"Nf3",
+"Nc6",
+"Nc3",
+"Nf6",
+"Nxe5"
+],
+
+3:[
+"d4",
+"Nf6",
+"c4",
+"g6",
+"Nc3",
+"Bg7"
+],
+
+4:[
+"e4",
+"Nf6",
+"e5",
+"Nd5",
+"d4"
+]
+
+};
 
 function renderBoard(){
 
-const boardDiv=document.getElementById("board");
-boardDiv.innerHTML="";
+const boardDiv = document.getElementById("board");
 
-const currentBoard=chess.board();
+boardDiv.innerHTML = "";
+
+const currentBoard = chess.board();
 
 for(let r=0;r<8;r++){
+
 for(let c=0;c<8;c++){
 
-const square=document.createElement("div");
+const square = document.createElement("div");
 
 square.classList.add("square");
+
 square.classList.add((r+c)%2===0?"light":"dark");
 
-const piece=currentBoard[r][c];
+const piece = currentBoard[r][c];
 
 if(piece){
 
-square.textContent=
+square.textContent =
 pieces[piece.color==="w"
 ?piece.type.toUpperCase()
 :piece.type];
@@ -155,7 +213,9 @@ piece.color==="w"?"white":"black"
 }
 
 if(selected&&selected.r===r&&selected.c===c){
+
 square.classList.add("selected");
+
 }
 
 if(selected){
@@ -166,7 +226,9 @@ verbose:true
 });
 
 if(moves.some(m=>m.to===toSquare(r,c))){
+
 square.classList.add("legal");
+
 }
 
 }
@@ -176,42 +238,84 @@ square.onclick=()=>handleClick(r,c);
 boardDiv.appendChild(square);
 
 }
+
 }
 
 updateStatus();
 
-document.getElementById("history").innerHTML=
+document.getElementById("history").innerHTML =
 chess.history().join("<br>");
 
 }
 
 function toSquare(r,c){
+
 return "abcdefgh"[c]+(8-r);
+
 }
 
 function handleClick(r,c){
 
-const clickedSquare=toSquare(r,c);
+const clickedSquare = toSquare(r,c);
 
 if(selected===null){
 
-const piece=chess.get(clickedSquare);
+const piece = chess.get(clickedSquare);
 
 if(piece&&piece.color==="w"){
+
 selected={r,c};
+
 }
 
 }else{
 
-const move=chess.move({
+const move = chess.move({
+
 from:toSquare(selected.r,selected.c),
+
 to:clickedSquare,
+
 promotion:'q'
+
 });
 
 selected=null;
 
 if(move){
+
+if(trainerMode){
+
+if(move.san===currentOpening[trainerIndex]){
+
+trainerIndex++;
+
+document.getElementById("coach").innerText="Correct.";
+
+if(trainerIndex<currentOpening.length){
+
+setTimeout(()=>{
+
+chess.move(currentOpening[trainerIndex]);
+
+trainerIndex++;
+
+renderBoard();
+
+},500);
+
+}
+
+}else{
+
+document.getElementById("coach").innerText=
+"Wrong move. Expected: "+currentOpening[trainerIndex];
+
+chess.undo();
+
+}
+
+}else{
 
 renderBoard();
 
@@ -231,13 +335,15 @@ renderBoard();
 
 }
 
+}
+
 function aiMove(){
 
-const moves=chess.moves();
+const moves = chess.moves();
 
 if(moves.length===0)return;
 
-const randomMove=
+const randomMove =
 moves[Math.floor(Math.random()*moves.length)];
 
 chess.move(randomMove);
@@ -255,11 +361,13 @@ if(chess.in_checkmate()){
 status="CHECKMATE";
 
 }
+
 else if(chess.in_check()){
 
 status="CHECK";
 
 }
+
 else{
 
 status=chess.turn()==="w"
@@ -278,7 +386,34 @@ chess.reset();
 
 selected=null;
 
+trainerMode=false;
+
+trainerIndex=0;
+
+document.getElementById("coach").innerText="Reset.";
+
 renderBoard();
+
+}
+
+function startOpeningTrainer(){
+
+resetGame();
+
+let choice = prompt(
+"Choose Opening:\n\n1 = Four Knights Scotch\n2 = Halloween Gambit\n3 = King's Indian Defense\n4 = Alekhine Defense"
+);
+
+if(!openings[choice]) return;
+
+currentOpening = openings[choice];
+
+trainerMode = true;
+
+trainerIndex = 0;
+
+document.getElementById("coach").innerText =
+"Training Started.";
 
 }
 
