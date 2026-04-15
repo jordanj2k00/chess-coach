@@ -47,15 +47,13 @@ position:relative;
 .light{background:#f0d9b5;}
 .dark{background:#b58863;}
 
-.selected{
-outline:4px solid yellow;
-}
+.selected{outline:4px solid yellow;}
 
 .legal::after{
 content:'';
 width:15px;
 height:15px;
-background:rgba(0,255,0,.7);
+background:lime;
 border-radius:50%;
 position:absolute;
 }
@@ -87,7 +85,6 @@ border-radius:8px;
 font-size:20px;
 width:100%;
 }
-
 </style>
 </head>
 
@@ -138,7 +135,6 @@ let selected=null;
 let turn='white';
 let captured=[];
 let history=[];
-let gameOver=false;
 
 function renderBoard(){
 const boardDiv=document.getElementById("board");
@@ -169,23 +165,24 @@ square.classList.add("legal");
 square.onclick=()=>handleClick(r,c);
 
 boardDiv.appendChild(square);
-
 }
 }
 
 document.getElementById("captured").innerText=captured.join(" ");
 document.getElementById("history").innerHTML=history.join("<br>");
+document.getElementById("status").innerText=
+turn==="white"?"White to Move":"Black Thinking...";
 }
 
 function handleClick(r,c){
 
-if(gameOver)return;
+if(turn!=="white") return;
 
 const piece=board[r][c];
 
 if(selected===null){
 
-if(piece&&piece[0]===turn[0]){
+if(piece&&piece[0]==='w'){
 selected={r,c};
 }
 
@@ -193,18 +190,13 @@ selected={r,c};
 
 if(validMove(selected.r,selected.c,r,c)){
 
-if(board[r][c]){
-captured.push(pieces[board[r][c]]);
-}
+movePiece(selected.r,selected.c,r,c);
 
-history.push(board[selected.r][selected.c]+" → "+String.fromCharCode(97+c)+(8-r));
+turn='black';
 
-board[r][c]=board[selected.r][selected.c];
-board[selected.r][selected.c]='';
+renderBoard();
 
-turn=turn==='white'?'black':'white';
-
-checkGameState();
+setTimeout(aiMove,500);
 
 }
 
@@ -212,6 +204,56 @@ selected=null;
 }
 
 renderBoard();
+}
+
+function movePiece(sr,sc,tr,tc){
+
+if(board[tr][tc]){
+captured.push(pieces[board[tr][tc]]);
+}
+
+history.push(board[sr][sc]+" → "+String.fromCharCode(97+tc)+(8-tr));
+
+board[tr][tc]=board[sr][sc];
+board[sr][sc]='';
+
+}
+
+function aiMove(){
+
+let possible=[];
+
+for(let sr=0;sr<8;sr++){
+for(let sc=0;sc<8;sc++){
+
+if(board[sr][sc]&&board[sr][sc][0]==='b'){
+
+for(let tr=0;tr<8;tr++){
+for(let tc=0;tc<8;tc++){
+
+if(validMove(sr,sc,tr,tc)){
+possible.push({sr,sc,tr,tc});
+}
+
+}
+}
+
+}
+}
+}
+
+if(possible.length>0){
+
+let move=possible[Math.floor(Math.random()*possible.length)];
+
+movePiece(move.sr,move.sc,move.tr,move.tc);
+
+}
+
+turn='white';
+
+renderBoard();
+
 }
 
 function validMove(sr,sc,tr,tc){
@@ -252,7 +294,6 @@ return (Math.abs(dr)===2&&Math.abs(dc)===1)||(Math.abs(dr)===1&&Math.abs(dc)===2
 
 case 'wk': case 'bk':
 return Math.abs(dr)<=1&&Math.abs(dc)<=1;
-
 }
 
 return false;
@@ -300,36 +341,13 @@ c+=stepC;
 return true;
 }
 
-function checkGameState(){
-
-let kings=0;
-
-for(let row of board){
-for(let piece of row){
-if(piece==='wk'||piece==='bk') kings++;
-}
-}
-
-if(kings<2){
-gameOver=true;
-document.getElementById("status").innerText="CHECKMATE!";
-return;
-}
-
-document.getElementById("status").innerText=
-turn==="white"?"White to Move":"Black to Move";
-
-}
-
 function resetGame(){
 board=JSON.parse(JSON.stringify(startBoard));
 selected=null;
 turn='white';
 captured=[];
 history=[];
-gameOver=false;
 renderBoard();
-document.getElementById("status").innerText="White to Move";
 }
 
 renderBoard();
