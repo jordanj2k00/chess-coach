@@ -4,6 +4,18 @@ const pieces = {
   'p':'♟','r':'♜','n':'♞','b':'♝','q':'♛','k':'♚',
   'P':'♙','R':'♖','N':'♘','B':'♗','Q':'♕','K':'♔'
 };
+let voiceEnabled = false;
+
+const moveExplanations = {
+  "e4":"Excellent. Controls the center and opens lines for your bishop and queen.",
+  "Nf3":"Good. Develops your knight and attacks the e5 pawn.",
+  "Nc3":"Develops your knight toward the center.",
+  "d4":"Strong center break. This challenges black immediately.",
+  "Nxe5":"Aggressive sacrifice. The Halloween Gambit begins.",
+  "Bb5":"Develops bishop while pinning the knight.",
+  "g3":"Preparing kingside fianchetto.",
+  "O-O":"Kingside castle for safety."
+};
 
 let selected = null;
 let trainerMode = false;
