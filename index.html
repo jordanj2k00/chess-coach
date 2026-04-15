@@ -77,7 +77,6 @@ width:100%;
 }
 </style>
 </head>
-
 <body>
 
 <h1>♟ Liquid Grave Chess Coach</h1>
@@ -114,31 +113,17 @@ const pieces={
 
 let selected=null;
 let trainerMode=false;
+let trainerStep=0;
 
-let openingTree={};
-let currentNode=null;
-
-const repertoire={
-
-fourKnights:{
-move:"e4",
-responses:{
-"e5":{
-move:"Nf3",
-responses:{
-"Nc6":{
-move:"Nc3",
-responses:{
-"Nf6":{
-options:["d4","Bb5","g3"]
-}
-}
-}
-}
-}
-}
-
-};
+const trainerLine=[
+["e4"],
+["e5"],
+["Nf3"],
+["Nc6"],
+["Nc3"],
+["Nf6"],
+["d4","Bb5","g3"]
+];
 
 function renderBoard(){
 
@@ -151,20 +136,21 @@ for(let r=0;r<8;r++){
 for(let c=0;c<8;c++){
 
 const square=document.createElement("div");
+
 square.classList.add("square");
 square.classList.add((r+c)%2===0?"light":"dark");
 
 const piece=currentBoard[r][c];
 
 if(piece){
-
 square.textContent=
 pieces[piece.color==="w"
 ?piece.type.toUpperCase()
 :piece.type];
 
-square.classList.add(piece.color==="w"?"white":"black");
-
+square.classList.add(
+piece.color==="w"?"white":"black"
+);
 }
 
 if(selected&&selected.r===r&&selected.c===c){
@@ -181,7 +167,6 @@ verbose:true
 if(moves.some(m=>m.to===toSquare(r,c))){
 square.classList.add("legal");
 }
-
 }
 
 square.onclick=()=>handleClick(r,c);
@@ -191,11 +176,10 @@ boardDiv.appendChild(square);
 }
 }
 
-updateStatus();
-
 document.getElementById("history").innerHTML=
 chess.history().join("<br>");
 
+updateStatus();
 }
 
 function toSquare(r,c){
@@ -228,7 +212,7 @@ if(move){
 
 if(trainerMode){
 
-handleTrainerMove(move.san);
+handleTrainer(move);
 
 }else{
 
@@ -241,53 +225,47 @@ setTimeout(aiMove,500);
 }
 
 renderBoard();
-
+}
 }
 
-}
+function handleTrainer(move){
 
-function handleTrainerMove(san){
+let allowedMoves=trainerLine[trainerStep];
 
-if(currentNode.move===san){
+if(!allowedMoves.includes(move.san)){
 
 document.getElementById("coach").innerText=
-"Correct. "+san+" played well.";
+"Wrong move. Expected: "+allowedMoves.join(" / ");
 
-currentNode=currentNode.responses;
+chess.undo();
+return;
+}
 
-let enemyMove=Object.keys(currentNode)[0];
+document.getElementById("coach").innerText=
+"Correct! "+move.san+" played.";
 
-if(enemyMove){
+trainerStep++;
+
+if(trainerStep>=trainerLine.length){
+
+document.getElementById("coach").innerText=
+"Training Complete!";
+
+trainerMode=false;
+return;
+}
 
 setTimeout(()=>{
 
+let enemyMove=trainerLine[trainerStep][0];
+
 chess.move(enemyMove);
 
-currentNode=currentNode[enemyMove];
+trainerStep++;
 
 renderBoard();
 
 },500);
-
-}
-
-}
-else if(currentNode.options&&currentNode.options.includes(san)){
-
-document.getElementById("coach").innerText=
-"Excellent. Variation accepted.";
-
-trainerMode=false;
-
-}
-else{
-
-document.getElementById("coach").innerText=
-"Incorrect. Try again.";
-
-chess.undo();
-
-}
 
 }
 
@@ -297,13 +275,12 @@ const moves=chess.moves();
 
 if(moves.length===0)return;
 
-const randomMove=
+const move=
 moves[Math.floor(Math.random()*moves.length)];
 
-chess.move(randomMove);
+chess.move(move);
 
 renderBoard();
-
 }
 
 function updateStatus(){
@@ -311,31 +288,22 @@ function updateStatus(){
 let status="";
 
 if(chess.in_checkmate()){
-
 status="CHECKMATE";
-
 }
 else if(chess.in_check()){
-
 status="CHECK";
-
 }
-else if(trainerMode===false&&document.getElementById("coach").innerText==="Excellent. Variation accepted."){
-
+else if(!trainerMode&&document.getElementById("coach").innerText==="Training Complete!"){
 status="Training Complete";
-
 }
 else{
-
 status=
 chess.turn()==="w"
 ?"White to Move"
 :"Black Thinking";
-
 }
 
 document.getElementById("status").innerText=status;
-
 }
 
 function resetGame(){
@@ -344,11 +312,11 @@ chess.reset();
 
 selected=null;
 trainerMode=false;
+trainerStep=0;
 
 document.getElementById("coach").innerText="Reset.";
 
 renderBoard();
-
 }
 
 function startOpeningTrainer(){
@@ -356,13 +324,10 @@ function startOpeningTrainer(){
 resetGame();
 
 trainerMode=true;
-
-openingTree=repertoire.fourKnights;
-
-currentNode=openingTree;
+trainerStep=0;
 
 document.getElementById("coach").innerText=
-"Four Knights Trainer Started";
+"Trainer Started: Four Knights";
 
 }
 
