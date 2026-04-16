@@ -1,30 +1,40 @@
 const chess = new Chess();
 
+let engine;
+
 /*
 ========================
-STOCKFISH ENGINE
+LOAD STOCKFISH ENGINE
 ========================
 */
-const engine = new Worker("https://unpkg.com/stockfish.js@10.0.2/stockfish.js");
+async function initEngine() {
+    const response = await fetch("https://unpkg.com/stockfish.js@10.0.2/stockfish.js");
+    const text = await response.text();
 
-engine.onmessage = function(event) {
-    const line = event.data;
-    console.log("ENGINE:", line);
+    const blob = new Blob([text], { type: "application/javascript" });
+    const blobURL = URL.createObjectURL(blob);
 
-    if (typeof line === "string" && line.includes("bestmove")) {
-        const bestMove = line.split(" ")[1];
+    engine = new Worker(blobURL);
 
-        if (!bestMove || bestMove === "(none)") return;
+    engine.onmessage = function(event) {
+        const line = event.data;
+        console.log("ENGINE:", line);
 
-        chess.move({
-            from: bestMove.substring(0, 2),
-            to: bestMove.substring(2, 4),
-            promotion: "q"
-        });
+        if (typeof line === "string" && line.includes("bestmove")) {
+            const bestMove = line.split(" ")[1];
 
-        renderBoard();
-    }
-};
+            if (!bestMove || bestMove === "(none)") return;
+
+            chess.move({
+                from: bestMove.substring(0, 2),
+                to: bestMove.substring(2, 4),
+                promotion: "q"
+            });
+
+            renderBoard();
+        }
+    };
+}
 
 /*
 ========================
@@ -32,18 +42,8 @@ PIECE DISPLAY
 ========================
 */
 const pieceMap = {
-    p: "♟",
-    r: "♜",
-    n: "♞",
-    b: "♝",
-    q: "♛",
-    k: "♚",
-    P: "♙",
-    R: "♖",
-    N: "♘",
-    B: "♗",
-    Q: "♕",
-    K: "♔"
+    p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚",
+    P: "♙", R: "♖", N: "♘", B: "♗", Q: "♕", K: "♔"
 };
 
 let selectedSquare = null;
@@ -81,9 +81,6 @@ function renderBoard() {
                 );
             }
 
-            /*
-            SELECTED HIGHLIGHT
-            */
             if (
                 selectedSquare &&
                 selectedSquare.row === row &&
@@ -92,22 +89,14 @@ function renderBoard() {
                 square.classList.add("selected");
             }
 
-            /*
-            LEGAL MOVE HIGHLIGHTS
-            */
             if (selectedSquare) {
                 const moves = chess.moves({
-                    square: coordsToSquare(
-                        selectedSquare.row,
-                        selectedSquare.col
-                    ),
+                    square: coordsToSquare(selectedSquare.row, selectedSquare.col),
                     verbose: true
                 });
 
                 if (
-                    moves.some(
-                        move => move.to === coordsToSquare(row, col)
-                    )
+                    moves.some(move => move.to === coordsToSquare(row, col))
                 ) {
                     square.classList.add("legal");
                 }
@@ -170,8 +159,9 @@ STOCKFISH MOVE
 ========================
 */
 function stockfishMove() {
+    if (!engine) return;
+
     engine.postMessage("uci");
-    engine.postMessage("ucinewgame");
     engine.postMessage("position fen " + chess.fen());
     engine.postMessage("go depth 8");
 }
@@ -204,10 +194,6 @@ function updateUI() {
     }
 
     document.getElementById("status").innerText = statusText;
-
-    /*
-    MOVE HISTORY
-    */
     document.getElementById("history").innerHTML =
         chess.history().join("<br>");
 }
@@ -237,4 +223,5 @@ function resetGame() {
 START
 ========================
 */
+initEngine();
 renderBoard();
