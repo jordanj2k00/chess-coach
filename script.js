@@ -3,7 +3,7 @@ const chess = new Chess();
 /*
 DIRECT STOCKFISH LOAD
 */
-const engine = new Worker("https://cdn.jsdelivr.net/npm/stockfish/stockfish.js");
+const engine = new Worker("stockfish.js");
 
 engine.onmessage = function(event){
 
