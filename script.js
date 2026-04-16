@@ -289,15 +289,35 @@ function changeMode(){
     }
     function adaptiveCoach(){
 
-    let advice = "Balanced play detected.";
+    let advice = "Balanced play detected. Keep developing your style.";
 
     if(playerProfile.earlyQueenMoves > 3){
 
         advice =
-        "You often move your queen early. Focus on developing minor pieces first.";
+        "You often move your queen early. Focus on developing knights and bishops first.";
 
     }
-        function detectPositionPlan(){
+
+    else if(playerProfile.earlyAttacks > 5){
+
+        advice =
+        "You tend to attack before full development. Build your position before striking.";
+
+    }
+
+    else if(playerProfile.pawnRushes > 10){
+
+        advice =
+        "You push many pawns aggressively. Be careful not to weaken your structure.";
+
+    }
+
+    document.getElementById("adaptiveCoach").innerText =
+        advice;
+}
+
+
+function detectPositionPlan(){
 
     for(let key in positionPlans){
 
@@ -308,27 +328,10 @@ function changeMode(){
 
             return;
         }
+
     }
 
     document.getElementById("positionPlan").innerText =
         "No special structure recognized.";
-}
-
-    else if(playerProfile.earlyAttacks > 5){
-
-        advice =
-        "You tend to attack before fully developing. Build first, then strike.";
-
-    }
-
-    else if(playerProfile.pawnRushes > 10){
-
-        advice =
-        "You may push pawns aggressively. Be careful not to weaken your structure.";
-
-    }
-
-    document.getElementById("adaptiveCoach").innerText =
-        advice;
 }
 }
