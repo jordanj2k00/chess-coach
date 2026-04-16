@@ -1,25 +1,24 @@
 const chess = new Chess();
 
 /*
-DIRECT STOCKFISH LOAD
+========================
+STOCKFISH ENGINE
+========================
 */
-const engine = new Worker("stockfish.js");
+const engine = new Worker("https://unpkg.com/stockfish.js@10.0.2/stockfish.js");
 
-engine.onmessage = function(event){
-
-    let line = event.data;
-
+engine.onmessage = function(event) {
+    const line = event.data;
     console.log("ENGINE:", line);
 
-    if(line.startsWith("bestmove")){
+    if (typeof line === "string" && line.includes("bestmove")) {
+        const bestMove = line.split(" ")[1];
 
-        let bestMove = line.split(" ")[1];
-
-        if(bestMove === "(none)") return;
+        if (!bestMove || bestMove === "(none)") return;
 
         chess.move({
-            from: bestMove.substring(0,2),
-            to: bestMove.substring(2,4),
+            from: bestMove.substring(0, 2),
+            to: bestMove.substring(2, 4),
             promotion: "q"
         });
 
@@ -27,189 +26,215 @@ engine.onmessage = function(event){
     }
 };
 
-const pieces = {
-'p':'♟','r':'♜','n':'♞','b':'♝','q':'♛','k':'♚',
-'P':'♙','R':'♖','N':'♘','B':'♗','Q':'♕','K':'♔'
+/*
+========================
+PIECE DISPLAY
+========================
+*/
+const pieceMap = {
+    p: "♟",
+    r: "♜",
+    n: "♞",
+    b: "♝",
+    q: "♛",
+    k: "♚",
+    P: "♙",
+    R: "♖",
+    N: "♘",
+    B: "♗",
+    Q: "♕",
+    K: "♔"
 };
 
-let selected = null;
+let selectedSquare = null;
 
-function renderBoard(){
+/*
+========================
+RENDER BOARD
+========================
+*/
+function renderBoard() {
+    const boardDiv = document.getElementById("board");
+    boardDiv.innerHTML = "";
 
-const boardDiv = document.getElementById("board");
+    const currentBoard = chess.board();
 
-boardDiv.innerHTML = "";
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const square = document.createElement("div");
 
-const currentBoard = chess.board();
+            square.classList.add("square");
+            square.classList.add((row + col) % 2 === 0 ? "light" : "dark");
 
-for(let r=0;r<8;r++){
+            const piece = currentBoard[row][col];
 
-for(let c=0;c<8;c++){
+            if (piece) {
+                square.textContent =
+                    pieceMap[
+                        piece.color === "w"
+                            ? piece.type.toUpperCase()
+                            : piece.type
+                    ];
 
-const square = document.createElement("div");
+                square.classList.add(
+                    piece.color === "w" ? "white-piece" : "black-piece"
+                );
+            }
 
-square.classList.add("square");
+            /*
+            SELECTED HIGHLIGHT
+            */
+            if (
+                selectedSquare &&
+                selectedSquare.row === row &&
+                selectedSquare.col === col
+            ) {
+                square.classList.add("selected");
+            }
 
-square.classList.add((r+c)%2===0?"light":"dark");
+            /*
+            LEGAL MOVE HIGHLIGHTS
+            */
+            if (selectedSquare) {
+                const moves = chess.moves({
+                    square: coordsToSquare(
+                        selectedSquare.row,
+                        selectedSquare.col
+                    ),
+                    verbose: true
+                });
 
-const piece = currentBoard[r][c];
+                if (
+                    moves.some(
+                        move => move.to === coordsToSquare(row, col)
+                    )
+                ) {
+                    square.classList.add("legal");
+                }
+            }
 
-if(piece){
+            square.onclick = () => handleClick(row, col);
 
-square.textContent =
-pieces[
-piece.color==="w"
-?piece.type.toUpperCase()
-:piece.type
-];
+            boardDiv.appendChild(square);
+        }
+    }
 
-square.classList.add(
-piece.color==="w"
-?"white"
-:"black"
-);
-
+    updateUI();
 }
 
-if(selected&&selected.r===r&&selected.c===c){
+/*
+========================
+HANDLE CLICK
+========================
+*/
+function handleClick(row, col) {
+    const clickedSquare = coordsToSquare(row, col);
 
-square.classList.add("selected");
+    if (!selectedSquare) {
+        const piece = chess.get(clickedSquare);
 
+        if (piece && piece.color === "w") {
+            selectedSquare = { row, col };
+            renderBoard();
+        }
+
+        return;
+    }
+
+    const move = chess.move({
+        from: coordsToSquare(selectedSquare.row, selectedSquare.col),
+        to: clickedSquare,
+        promotion: "q"
+    });
+
+    selectedSquare = null;
+
+    if (!move) {
+        renderBoard();
+        return;
+    }
+
+    renderBoard();
+
+    if (!chess.game_over()) {
+        document.getElementById("status").innerText =
+            "🤖 Stockfish Thinking...";
+
+        setTimeout(stockfishMove, 500);
+    }
 }
 
-if(selected){
-
-const moves = chess.moves({
-square:toSquare(selected.r,selected.c),
-verbose:true
-});
-
-if(moves.some(m=>m.to===toSquare(r,c))){
-
-square.classList.add("legal");
-
+/*
+========================
+STOCKFISH MOVE
+========================
+*/
+function stockfishMove() {
+    engine.postMessage("uci");
+    engine.postMessage("ucinewgame");
+    engine.postMessage("position fen " + chess.fen());
+    engine.postMessage("go depth 8");
 }
 
+/*
+========================
+UI UPDATE
+========================
+*/
+function updateUI() {
+    let statusText = "";
+
+    if (chess.in_checkmate()) {
+        statusText =
+            chess.turn() === "w"
+                ? "Checkmate! Black Wins"
+                : "Checkmate! White Wins";
+    } else if (chess.in_draw()) {
+        statusText = "Draw";
+    } else if (chess.in_check()) {
+        statusText =
+            chess.turn() === "w"
+                ? "White in Check"
+                : "Black in Check";
+    } else {
+        statusText =
+            chess.turn() === "w"
+                ? "White to Move"
+                : "Black to Move";
+    }
+
+    document.getElementById("status").innerText = statusText;
+
+    /*
+    MOVE HISTORY
+    */
+    document.getElementById("history").innerHTML =
+        chess.history().join("<br>");
 }
 
-square.onclick = ()=>handleClick(r,c);
-
-boardDiv.appendChild(square);
-
+/*
+========================
+HELPERS
+========================
+*/
+function coordsToSquare(row, col) {
+    return "abcdefgh"[col] + (8 - row);
 }
 
+/*
+========================
+RESET
+========================
+*/
+function resetGame() {
+    chess.reset();
+    selectedSquare = null;
+    renderBoard();
 }
 
-document.getElementById("history").innerHTML =
-chess.history().join("<br>");
-
-updateStatus();
-
-}
-
-function toSquare(r,c){
-
-return "abcdefgh"[c]+(8-r);
-
-}
-
-function handleClick(r,c){
-
-const clickedSquare = toSquare(r,c);
-
-if(selected===null){
-
-const piece = chess.get(clickedSquare);
-
-if(piece&&piece.color==="w"){
-
-selected={r,c};
-
-renderBoard();
-
-return;
-
-}
-
-}else{
-
-const move = chess.move({
-
-from:toSquare(selected.r,selected.c),
-
-to:clickedSquare,
-
-promotion:"q"
-
-});
-
-selected=null;
-
-if(move){
-
-renderBoard();
-
-if(!chess.game_over()){
-
-setTimeout(stockfishMove,500);
-
-}
-
-return;
-
-}
-
-renderBoard();
-
-}
-
-}
-
-function stockfishMove(){
-
-engine.postMessage("position fen " + chess.fen());
-
-engine.postMessage("go depth 10");
-
-}
-
-function updateStatus(){
-
-let status="";
-
-if(chess.in_checkmate()){
-
-status="CHECKMATE";
-
-}
-
-else if(chess.in_check()){
-
-status="CHECK";
-
-}
-
-else{
-
-status=
-chess.turn()==="w"
-?"Your Turn"
-:"🤖 Stockfish Thinking...";
-
-}
-
-document.getElementById("status").innerText=status;
-
-}
-
-function resetGame(){
-
-chess.reset();
-
-selected=null;
-
-renderBoard();
-
-}
-
+/*
+========================
+START
+========================
+*/
 renderBoard();
