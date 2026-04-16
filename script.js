@@ -126,12 +126,18 @@ function renderBoard(){
             const piece = currentBoard[row][col];
 
             if(piece){
-                square.textContent =
-                    pieceMap[
-                        piece.color==="w"
-                        ? piece.type.toUpperCase()
-                        : piece.type
-                    ];
+                const img = document.createElement("img");
+
+img.src =
+    pieceImages[
+        piece.color === "w"
+            ? piece.type.toUpperCase()
+            : piece.type
+    ];
+
+img.classList.add("piece-img");
+
+square.appendChild(img);
 
                 square.classList.add(
                     piece.color==="w"
