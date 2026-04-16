@@ -241,6 +241,8 @@ function updateUI(){
 
     document.getElementById("history").innerHTML=
         chess.history().join("<br>");
+    adaptiveCoach();
+detectPositionPlan();
 }
 
 function coordsToSquare(row,col){
@@ -327,17 +329,6 @@ function detectPositionPlan(){
                 positionPlans[key].advice;
 
             return;
-        }
-        function detectPositionPlan(){
-
-    for(let key in positionPlans){
-
-        if(positionPlans[key].condition()){
-
-            document.getElementById("positionPlan").innerText =
-                positionPlans[key].advice;
-
-            return;
 
         }
 
@@ -346,11 +337,4 @@ function detectPositionPlan(){
     document.getElementById("positionPlan").innerText =
         "No special structure recognized.";
 
-}
-
-    }
-
-    document.getElementById("positionPlan").innerText =
-        "No special structure recognized.";
-}
 }
