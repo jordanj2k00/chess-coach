@@ -12,6 +12,16 @@
 
     <h1>♟ Liquid Grave Chess Coach</h1>
 
+    <div class="menu-bar">
+
+        <select id="gameMode" onchange="changeMode()">
+            <option value="computer">Regular Game vs Computer</option>
+            <option value="theory">Opening Theory Practice</option>
+            <option value="analysis">Analysis Board</option>
+        </select>
+
+    </div>
+
     <div id="board"></div>
 
     <button onclick="resetGame()">Reset Game</button>
