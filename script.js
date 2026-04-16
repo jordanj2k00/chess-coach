@@ -10,21 +10,46 @@ let playerProfile = {
 };
 
 const positionPlans = {
+
     advanceFrench: {
         condition: () =>
-            chess.get("e5") && chess.get("d4"),
+            chess.get("e5") &&
+            chess.get("d4") &&
+            chess.get("c3"),
 
         advice:
-            "Advance French structure: Maintain center, prepare kingside pressure, watch for Black's c5 break."
+            "Advance French: Space advantage. Play f4–f5, attack kingside, keep center closed."
     },
 
     kingsideAttack: {
         condition: () =>
-            chess.get("f4") || chess.get("h4"),
+            chess.get("f4") ||
+            chess.get("g4") ||
+            chess.get("h4"),
 
         advice:
-            "Kingside attack detected: Build pressure near enemy king and look for tactical opportunities."
+            "Kingside attack: Bring rook to f-file, queen to h5/e1, look for sacrifices."
     },
+
+    developedCenter: {
+        condition: () =>
+            chess.get("e4") &&
+            chess.get("d4") &&
+            chess.get("f3"),
+
+        advice:
+            "Strong center: Develop quickly, castle, and open lines for attack."
+    },
+
+    randomPlay: {
+        condition: () =>
+            chess.history().length > 6,
+
+        advice:
+            "No clear plan detected: Focus on development, king safety, and controlling center."
+    }
+
+};
 
     openCenter: {
         condition: () =>
