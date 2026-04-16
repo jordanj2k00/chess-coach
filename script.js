@@ -328,6 +328,25 @@ function detectPositionPlan(){
 
             return;
         }
+        function detectPositionPlan(){
+
+    for(let key in positionPlans){
+
+        if(positionPlans[key].condition()){
+
+            document.getElementById("positionPlan").innerText =
+                positionPlans[key].advice;
+
+            return;
+
+        }
+
+    }
+
+    document.getElementById("positionPlan").innerText =
+        "No special structure recognized.";
+
+}
 
     }
 
