@@ -38,7 +38,16 @@ const positionPlans = {
             chess.get("f3"),
 
         advice:
-            "Strong center: Develop quickly, castle, and open lines for attack."
+            "Strong center: Develop quickly, castle, and open lines."
+    },
+
+    openCenter: {
+        condition: () =>
+            !chess.get("d4") &&
+            !chess.get("e4"),
+
+        advice:
+            "Open center: Prioritize piece activity and tactics."
     },
 
     randomPlay: {
@@ -46,7 +55,7 @@ const positionPlans = {
             chess.history().length > 6,
 
         advice:
-            "No clear plan detected: Focus on development, king safety, and controlling center."
+            "No clear plan: Improve development, king safety, and coordination."
     }
 
 };
