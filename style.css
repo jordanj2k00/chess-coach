@@ -1,109 +1,140 @@
+/* 🌌 BACKGROUND */
 body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
     background: radial-gradient(circle at top, #0a1a3a, #020c1f);
     color: white;
     text-align: center;
-    font-family: Arial, sans-serif;
 }
 
-/* TITLE */
+/* 🏆 TITLE */
 h1 {
     color: #ffd700;
-    font-size: 36px;
-    margin-bottom: 20px;
+    font-size: 28px;
+    margin-top: 20px;
 }
 
-/* BOARD */
+/* 🎛 DROPDOWN */
+select {
+    margin: 15px 0;
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    font-size: 16px;
+}
+
+/* ♟ BOARD CONTAINER */
 #board {
-    width: 95vw;
+    width: 92vw;
     max-width: 420px;
-    height: 95vw;
+    height: 92vw;
     max-height: 420px;
     margin: 20px auto;
+
     display: grid;
     grid-template-columns: repeat(8, 1fr);
-    border: 4px solid gold;
+
+    border: 4px solid #ffd700;
     border-radius: 12px;
-    box-shadow: 0 0 25px rgba(255, 215, 0, 0.5);
     overflow: hidden;
+
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
 }
 
-/* SQUARES */
+/* 🟫 SQUARES */
 .square {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 34px;
+
+    position: relative;
+
+    font-size: 32px; /* fallback if emoji used */
     cursor: pointer;
-    transition: all 0.15s ease;
 }
 
-/* COLORS */
+/* LIGHT / DARK */
 .light {
-    background: #e6d3b3;
+    background: #f0d9b5;
 }
 
 .dark {
     background: #b58863;
 }
 
-/* PIECES */
-.white-piece {
-    color: white;
-    text-shadow: 0 0 8px rgba(255,255,255,0.7);
+/* ♟ PIECE IMAGE (THIS FIXES YOUR ISSUE) */
+.piece-img {
+    width: 80%;
+    height: 80%;
+    object-fit: contain;
+    pointer-events: none;
 }
 
-.black-piece {
-    color: black;
-    text-shadow: 0 0 6px rgba(0,0,0,0.6);
-}
-
-/* SELECTED SQUARE */
+/* 🟡 SELECTED SQUARE */
 .selected {
-    outline: 3px solid #ffd700;
-    box-shadow: inset 0 0 12px rgba(255, 215, 0, 0.6);
+    outline: 3px solid yellow;
+    outline-offset: -3px;
 }
 
-/* LEGAL MOVES (FIXED 🔥) */
-.legal {
-    position: relative;
-}
-
+/* 🟢 LEGAL MOVE DOT */
 .legal::after {
     content: "";
     width: 18px;
     height: 18px;
-    background: rgba(0, 255, 0, 0.5);
+    background: rgba(0, 255, 0, 0.6);
     border-radius: 50%;
     position: absolute;
 }
 
-/* HOVER EFFECT */
-.square:hover {
-    filter: brightness(1.1);
+/* 🔥 CAPTURE HIGHLIGHT */
+.capture {
+    background-color: rgba(255, 0, 0, 0.4) !important;
 }
 
-/* BUTTON */
+/* 🔘 BUTTON */
 button {
     background: #ffd700;
-    color: #1a3c8b;
+    color: #1a2a6c;
     border: none;
-    padding: 15px 25px;
-    font-size: 20px;
-    border-radius: 12px;
-    margin: 15px;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 18px;
+    margin: 15px 0;
     cursor: pointer;
     font-weight: bold;
 }
 
 button:hover {
-    transform: scale(1.05);
+    background: #ffea00;
 }
 
-/* STATUS PANEL */
+/* 📊 STATUS PANEL */
 #status-panel {
-    background: #142847;
+    width: 90%;
+    max-width: 420px;
+    margin: 20px auto;
     padding: 20px;
+
+    background: #1b2a49;
     border-radius: 15px;
-    margin: 20px;
+
     text-align: left;
+}
+
+/* HEADINGS */
+#status-panel h2 {
+    margin-top: 15px;
+    font-size: 22px;
+}
+
+/* TEXT BLOCKS */
+#status,
+#coach,
+#adaptiveCoach,
+#positionPlan,
+#history {
+    margin-top: 5px;
+    font-size: 16px;
+    line-height: 1.4;
 }
