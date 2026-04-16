@@ -274,6 +274,22 @@ function changeMode(){
         "You often move your queen early. Focus on developing minor pieces first.";
 
     }
+        function detectPositionPlan(){
+
+    for(let key in positionPlans){
+
+        if(positionPlans[key].condition()){
+
+            document.getElementById("positionPlan").innerText =
+                positionPlans[key].advice;
+
+            return;
+        }
+    }
+
+    document.getElementById("positionPlan").innerText =
+        "No special structure recognized.";
+}
 
     else if(playerProfile.earlyAttacks > 5){
 
