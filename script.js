@@ -1,5 +1,11 @@
 let currentMode = "computer";
 const chess = new Chess();
+let playerProfile = {
+    earlyQueenMoves: 0,
+    earlyAttacks: 0,
+    pawnRushes: 0,
+    gamesPlayed: 0
+};
 
 const pieceMap = {
     p:"♟", r:"♜", n:"♞", b:"♝", q:"♛", k:"♚",
