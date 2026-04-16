@@ -150,6 +150,29 @@ function handleClick(row,col){
         to:clickedSquare,
         promotion:"q"
     });
+    if(move){
+
+    if(
+        move.piece === "q" &&
+        chess.history().length < 10
+    ){
+        playerProfile.earlyQueenMoves++;
+    }
+
+    if(
+        move.san.includes("+") &&
+        chess.history().length < 12
+    ){
+        playerProfile.earlyAttacks++;
+    }
+
+    if(
+        move.piece === "p"
+    ){
+        playerProfile.pawnRushes++;
+    }
+
+}
 
     selectedSquare=null;
 
