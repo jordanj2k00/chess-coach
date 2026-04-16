@@ -1,3 +1,22 @@
+let currentMode = "computer";
+
+const chess = new Chess();
+
+let playerProfile = {
+    earlyQueenMoves: 0,
+    earlyAttacks: 0,
+    pawnRushes: 0,
+    gamesPlayed: 0
+};
+
+let selectedSquare = null;
+let lastMove = null;
+
+/*
+========================
+PIECE IMAGES
+========================
+*/
 const pieceImages = {
     p: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/bp.png",
     r: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/br.png",
@@ -13,20 +32,10 @@ const pieceImages = {
     Q: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/wq.png",
     K: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/wk.png"
 };
-let currentMode = "computer";
-
-const chess = new Chess();
-
-let playerProfile = {
-    earlyQueenMoves: 0,
-    earlyAttacks: 0,
-    pawnRushes: 0,
-    gamesPlayed: 0
-};
 
 /*
 ========================
-POSITION PLANS (CLEAN)
+POSITION PLANS
 ========================
 */
 const positionPlans = {
@@ -38,7 +47,7 @@ const positionPlans = {
             chess.get("c3"),
 
         advice:
-            "Advance French: Space advantage. Play on the kingside and prepare for Black’s c5 break."
+            "Advance French: Space advantage. Attack kingside, prepare for c5."
     },
 
     kingsideAttack: {
@@ -48,7 +57,7 @@ const positionPlans = {
             chess.get("h4"),
 
         advice:
-            "Kingside attack: Bring rook to f-file, target enemy king, look for sacrifices."
+            "Kingside attack: Bring rook to f-file and attack enemy king."
     },
 
     developedCenter: {
@@ -58,7 +67,7 @@ const positionPlans = {
             chess.get("f3"),
 
         advice:
-            "Strong center: Develop quickly, castle early, and control key squares."
+            "Strong center: Develop quickly and castle."
     },
 
     openCenter: {
@@ -67,7 +76,7 @@ const positionPlans = {
             !chess.get("e4"),
 
         advice:
-            "Open center: Prioritize development and active pieces."
+            "Open center: Activate pieces and look for tactics."
     },
 
     randomPlay: {
@@ -75,21 +84,9 @@ const positionPlans = {
             chess.history().length > 6,
 
         advice:
-            "No clear plan: Improve development, coordinate pieces, and create a strategy."
+            "No clear plan: Improve development and coordination."
     }
 };
-
-/*
-========================
-PIECES
-========================
-*/
-const pieceMap = {
-    p:"♟", r:"♜", n:"♞", b:"♝", q:"♛", k:"♚",
-    P:"♙", R:"♖", N:"♘", B:"♗", Q:"♕", K:"♔"
-};
-
-let selectedSquare = null;
 
 /*
 ========================
@@ -97,10 +94,10 @@ OPENING THEORY
 ========================
 */
 const openingLines = [
-    ["e4","e5","Nf3","Nc6","Nc3","Nf6","d4"], // Four Knights Scotch
-    ["e4","e5","Nf3","Nc6","Nc3","Nf6","Nxe5"], // Halloween
-    ["d4","Nf6","c4","g6"], // KID
-    ["e4","Nf6"] // Alekhine
+    ["e4","e5","Nf3","Nc6","Nc3","Nf6","d4"],
+    ["e4","e5","Nf3","Nc6","Nc3","Nf6","Nxe5"],
+    ["d4","Nf6","c4","g6"],
+    ["e4","Nf6"]
 ];
 
 /*
@@ -119,31 +116,32 @@ function renderBoard(){
         for(let col=0; col<8; col++){
 
             const square = document.createElement("div");
-
             square.classList.add("square");
             square.classList.add((row+col)%2===0 ? "light":"dark");
 
+            const squareName = coordsToSquare(row,col);
             const piece = currentBoard[row][col];
 
+            // LAST MOVE HIGHLIGHT
+            if(lastMove &&
+               (squareName === lastMove.from || squareName === lastMove.to)){
+                square.classList.add("last-move");
+            }
+
             if(piece){
+
                 const img = document.createElement("img");
 
-img.src =
-    pieceImages[
-        piece.color === "w"
-            ? piece.type.toUpperCase()
-            : piece.type
-    ];
+                img.src =
+                    pieceImages[
+                        piece.color === "w"
+                            ? piece.type.toUpperCase()
+                            : piece.type
+                    ];
 
-img.classList.add("piece-img");
+                img.classList.add("piece-img");
 
-square.appendChild(img);
-
-                square.classList.add(
-                    piece.color==="w"
-                    ? "white-piece"
-                    : "black-piece"
-                );
+                square.appendChild(img);
             }
 
             if(selectedSquare &&
@@ -210,6 +208,11 @@ function handleClick(row,col){
 
     if(move){
 
+        lastMove = {
+            from: move.from,
+            to: move.to
+        };
+
         if(move.piece==="q" && chess.history().length<10){
             playerProfile.earlyQueenMoves++;
         }
@@ -253,12 +256,17 @@ function aiMove(){
 
     chess.move(randomMove);
 
+    lastMove = {
+        from: randomMove.from,
+        to: randomMove.to
+    };
+
     renderBoard();
 }
 
 /*
 ========================
-COACH (OPENINGS)
+COACH
 ========================
 */
 function coachPlayer(){
@@ -294,18 +302,18 @@ ADAPTIVE COACH
 */
 function adaptiveCoach(){
 
-    let advice = "Balanced play detected. Keep developing your style.";
+    let advice = "Balanced play detected.";
 
     if(playerProfile.earlyQueenMoves > 3){
-        advice = "You move your queen early. Develop minor pieces first.";
+        advice = "You move your queen early. Develop pieces first.";
     }
 
     else if(playerProfile.earlyAttacks > 5){
-        advice = "You attack too early. Build your position first.";
+        advice = "You attack too early. Build your position.";
     }
 
     else if(playerProfile.pawnRushes > 10){
-        advice = "Too many pawn pushes. Watch your structure.";
+        advice = "Too many pawn pushes. Watch structure.";
     }
 
     document.getElementById("adaptiveCoach").innerText = advice;
@@ -330,7 +338,7 @@ function detectPositionPlan(){
     }
 
     document.getElementById("positionPlan").innerText =
-        "No special structure recognized.";
+        "No clear structure detected.";
 }
 
 /*
@@ -370,6 +378,7 @@ function resetGame(){
 
     chess.reset();
     selectedSquare = null;
+    lastMove = null;
 
     document.getElementById("coach").innerText =
         "Ready for battle.";
@@ -388,21 +397,6 @@ function changeMode(){
         document.getElementById("gameMode").value;
 
     resetGame();
-
-    if(currentMode==="computer"){
-        document.getElementById("coach").innerText =
-            "Computer battle mode activated.";
-    }
-
-    if(currentMode==="theory"){
-        document.getElementById("coach").innerText =
-            "Opening theory mode activated.";
-    }
-
-    if(currentMode==="analysis"){
-        document.getElementById("coach").innerText =
-            "Analysis board active.";
-    }
 }
 
 /*
