@@ -9,6 +9,11 @@ let playerProfile = {
     gamesPlayed: 0
 };
 
+/*
+========================
+POSITION PLANS (CLEAN)
+========================
+*/
 const positionPlans = {
 
     advanceFrench: {
@@ -18,7 +23,7 @@ const positionPlans = {
             chess.get("c3"),
 
         advice:
-            "Advance French: Space advantage. Play f4–f5, attack kingside, keep center closed."
+            "Advance French: Space advantage. Play on the kingside and prepare for Black’s c5 break."
     },
 
     kingsideAttack: {
@@ -28,7 +33,7 @@ const positionPlans = {
             chess.get("h4"),
 
         advice:
-            "Kingside attack: Bring rook to f-file, queen to h5/e1, look for sacrifices."
+            "Kingside attack: Bring rook to f-file, target enemy king, look for sacrifices."
     },
 
     developedCenter: {
@@ -38,7 +43,7 @@ const positionPlans = {
             chess.get("f3"),
 
         advice:
-            "Strong center: Develop quickly, castle, and open lines."
+            "Strong center: Develop quickly, castle early, and control key squares."
     },
 
     openCenter: {
@@ -47,7 +52,7 @@ const positionPlans = {
             !chess.get("e4"),
 
         advice:
-            "Open center: Prioritize piece activity and tactics."
+            "Open center: Prioritize development and active pieces."
     },
 
     randomPlay: {
@@ -55,20 +60,15 @@ const positionPlans = {
             chess.history().length > 6,
 
         advice:
-            "No clear plan: Improve development, king safety, and coordination."
-    }
-
-};
-
-    openCenter: {
-        condition: () =>
-            !chess.get("d4") && !chess.get("e4"),
-
-        advice:
-            "Open center: Prioritize development, active pieces, and tactical awareness."
+            "No clear plan: Improve development, coordinate pieces, and create a strategy."
     }
 };
 
+/*
+========================
+PIECES
+========================
+*/
 const pieceMap = {
     p:"♟", r:"♜", n:"♞", b:"♝", q:"♛", k:"♚",
     P:"♙", R:"♖", N:"♘", B:"♗", Q:"♕", K:"♔"
@@ -76,14 +76,25 @@ const pieceMap = {
 
 let selectedSquare = null;
 
+/*
+========================
+OPENING THEORY
+========================
+*/
 const openingLines = [
-    ["e4","e5","Nf3","Nc6","Nc3","Nf6","d4"],
-    ["e4","e5","Nf3","Nc6","Nc3","Nf6","Nxe5"],
-    ["d4","Nf6","c4","g6"],
-    ["e4","Nf6"]
+    ["e4","e5","Nf3","Nc6","Nc3","Nf6","d4"], // Four Knights Scotch
+    ["e4","e5","Nf3","Nc6","Nc3","Nf6","Nxe5"], // Halloween
+    ["d4","Nf6","c4","g6"], // KID
+    ["e4","Nf6"] // Alekhine
 ];
 
-function renderBoard() {
+/*
+========================
+RENDER BOARD
+========================
+*/
+function renderBoard(){
+
     const boardDiv = document.getElementById("board");
     boardDiv.innerHTML = "";
 
@@ -95,7 +106,7 @@ function renderBoard() {
             const square = document.createElement("div");
 
             square.classList.add("square");
-            square.classList.add((row+col)%2===0 ? "light" : "dark");
+            square.classList.add((row+col)%2===0 ? "light":"dark");
 
             const piece = currentBoard[row][col];
 
@@ -121,6 +132,7 @@ function renderBoard() {
             }
 
             if(selectedSquare){
+
                 const moves = chess.moves({
                     square: coordsToSquare(
                         selectedSquare.row,
@@ -130,7 +142,7 @@ function renderBoard() {
                 });
 
                 if(moves.some(
-                    move => move.to===coordsToSquare(row,col)
+                    move => move.to === coordsToSquare(row,col)
                 )){
                     square.classList.add("legal");
                 }
@@ -145,14 +157,21 @@ function renderBoard() {
     updateUI();
 }
 
+/*
+========================
+HANDLE CLICK
+========================
+*/
 function handleClick(row,col){
+
     const clickedSquare = coordsToSquare(row,col);
 
     if(!selectedSquare){
+
         const piece = chess.get(clickedSquare);
 
         if(piece && piece.color==="w"){
-            selectedSquare={row,col};
+            selectedSquare = {row,col};
             renderBoard();
         }
 
@@ -160,11 +179,11 @@ function handleClick(row,col){
     }
 
     const move = chess.move({
-        from:coordsToSquare(
+        from: coordsToSquare(
             selectedSquare.row,
             selectedSquare.col
         ),
-        to:clickedSquare,
+        to: clickedSquare,
         promotion:"q"
     });
 
@@ -199,7 +218,13 @@ function handleClick(row,col){
     }
 }
 
+/*
+========================
+AI MOVE
+========================
+*/
 function aiMove(){
+
     const moves = chess.moves({verbose:true});
 
     const randomMove =
@@ -210,14 +235,23 @@ function aiMove(){
     renderBoard();
 }
 
+/*
+========================
+COACH (OPENINGS)
+========================
+*/
 function coachPlayer(){
+
     const history = chess.history();
+
+    let matched = false;
 
     for(let line of openingLines){
 
-        let partial = line.slice(0,history.length);
+        let partial = line.slice(0, history.length);
 
-        if(JSON.stringify(history)===JSON.stringify(partial)){
+        if(JSON.stringify(history) === JSON.stringify(partial)){
+            matched = true;
 
             document.getElementById("coach").innerText =
                 "Excellent. You are following theory.";
@@ -226,33 +260,41 @@ function coachPlayer(){
         }
     }
 
-    document.getElementById("coach").innerText =
-        "You have deviated from your opening prep.";
+    if(!matched){
+        document.getElementById("coach").innerText =
+            "You have deviated from your opening prep.";
+    }
 }
 
+/*
+========================
+ADAPTIVE COACH
+========================
+*/
 function adaptiveCoach(){
-    let advice =
-        "Balanced play detected. Keep developing your style.";
 
-    if(playerProfile.earlyQueenMoves>3){
-        advice =
-            "You often move your queen early. Focus on developing knights and bishops first.";
+    let advice = "Balanced play detected. Keep developing your style.";
+
+    if(playerProfile.earlyQueenMoves > 3){
+        advice = "You move your queen early. Develop minor pieces first.";
     }
 
-    else if(playerProfile.earlyAttacks>5){
-        advice =
-            "You tend to attack before full development. Build your position before striking.";
+    else if(playerProfile.earlyAttacks > 5){
+        advice = "You attack too early. Build your position first.";
     }
 
-    else if(playerProfile.pawnRushes>10){
-        advice =
-            "You push many pawns aggressively. Be careful not to weaken your structure.";
+    else if(playerProfile.pawnRushes > 10){
+        advice = "Too many pawn pushes. Watch your structure.";
     }
 
-    document.getElementById("adaptiveCoach").innerText =
-        advice;
+    document.getElementById("adaptiveCoach").innerText = advice;
 }
 
+/*
+========================
+POSITION PLAN
+========================
+*/
 function detectPositionPlan(){
 
     for(let key in positionPlans){
@@ -270,28 +312,42 @@ function detectPositionPlan(){
         "No special structure recognized.";
 }
 
+/*
+========================
+UI UPDATE
+========================
+*/
 function updateUI(){
 
     document.getElementById("status").innerText =
         chess.turn()==="w"
-        ? "White to Move"
-        : "Black to Move";
+        ?"White to Move"
+        :"Black to Move";
 
     document.getElementById("history").innerHTML =
         chess.history().join("<br>");
 
     adaptiveCoach();
-
     detectPositionPlan();
 }
 
+/*
+========================
+HELPERS
+========================
+*/
 function coordsToSquare(row,col){
     return "abcdefgh"[col] + (8-row);
 }
 
+/*
+========================
+RESET
+========================
+*/
 function resetGame(){
-    chess.reset();
 
+    chess.reset();
     selectedSquare = null;
 
     document.getElementById("coach").innerText =
@@ -300,6 +356,11 @@ function resetGame(){
     renderBoard();
 }
 
+/*
+========================
+MODE SWITCH
+========================
+*/
 function changeMode(){
 
     currentMode =
@@ -323,4 +384,9 @@ function changeMode(){
     }
 }
 
+/*
+========================
+START
+========================
+*/
 renderBoard();
