@@ -1,49 +1,8 @@
 const chess = new Chess();
 
-let engine;
-
-/*
-========================
-LOAD STOCKFISH ENGINE
-========================
-*/
-async function initEngine() {
-    const response = await fetch("https://unpkg.com/stockfish.js@10.0.2/stockfish.js");
-    const text = await response.text();
-
-    const blob = new Blob([text], { type: "application/javascript" });
-    const blobURL = URL.createObjectURL(blob);
-
-    engine = new Worker(blobURL);
-
-    engine.onmessage = function(event) {
-        const line = event.data;
-        console.log("ENGINE:", line);
-
-        if (typeof line === "string" && line.includes("bestmove")) {
-            const bestMove = line.split(" ")[1];
-
-            if (!bestMove || bestMove === "(none)") return;
-
-            chess.move({
-                from: bestMove.substring(0, 2),
-                to: bestMove.substring(2, 4),
-                promotion: "q"
-            });
-
-            renderBoard();
-        }
-    };
-}
-
-/*
-========================
-PIECE DISPLAY
-========================
-*/
 const pieceMap = {
-    p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚",
-    P: "♙", R: "♖", N: "♘", B: "♗", Q: "♕", K: "♔"
+    p:"♟", r:"♜", n:"♞", b:"♝", q:"♛", k:"♚",
+    P:"♙", R:"♖", N:"♘", B:"♗", Q:"♕", K:"♔"
 };
 
 let selectedSquare = null;
@@ -59,50 +18,60 @@ function renderBoard() {
 
     const currentBoard = chess.board();
 
-    for (let row = 0; row < 8; row++) {
-        for (let col = 0; col < 8; col++) {
+    for(let row=0; row<8; row++){
+        for(let col=0; col<8; col++){
+
             const square = document.createElement("div");
 
             square.classList.add("square");
-            square.classList.add((row + col) % 2 === 0 ? "light" : "dark");
+            square.classList.add((row+col)%2===0?"light":"dark");
 
             const piece = currentBoard[row][col];
 
-            if (piece) {
+            if(piece){
+
                 square.textContent =
                     pieceMap[
-                        piece.color === "w"
-                            ? piece.type.toUpperCase()
-                            : piece.type
+                        piece.color==="w"
+                        ? piece.type.toUpperCase()
+                        : piece.type
                     ];
 
                 square.classList.add(
-                    piece.color === "w" ? "white-piece" : "black-piece"
+                    piece.color==="w"
+                    ?"white-piece"
+                    :"black-piece"
                 );
             }
 
-            if (
+            if(
                 selectedSquare &&
-                selectedSquare.row === row &&
-                selectedSquare.col === col
-            ) {
+                selectedSquare.row===row &&
+                selectedSquare.col===col
+            ){
                 square.classList.add("selected");
             }
 
-            if (selectedSquare) {
+            if(selectedSquare){
+
                 const moves = chess.moves({
-                    square: coordsToSquare(selectedSquare.row, selectedSquare.col),
-                    verbose: true
+                    square: coordsToSquare(
+                        selectedSquare.row,
+                        selectedSquare.col
+                    ),
+                    verbose:true
                 });
 
-                if (
-                    moves.some(move => move.to === coordsToSquare(row, col))
-                ) {
+                if(
+                    moves.some(
+                        move=>move.to===coordsToSquare(row,col)
+                    )
+                ){
                     square.classList.add("legal");
                 }
             }
 
-            square.onclick = () => handleClick(row, col);
+            square.onclick=()=>handleClick(row,col);
 
             boardDiv.appendChild(square);
         }
@@ -116,14 +85,18 @@ function renderBoard() {
 HANDLE CLICK
 ========================
 */
-function handleClick(row, col) {
-    const clickedSquare = coordsToSquare(row, col);
+function handleClick(row,col){
 
-    if (!selectedSquare) {
+    const clickedSquare = coordsToSquare(row,col);
+
+    if(!selectedSquare){
+
         const piece = chess.get(clickedSquare);
 
-        if (piece && piece.color === "w") {
-            selectedSquare = { row, col };
+        if(piece && piece.color==="w"){
+
+            selectedSquare={row,col};
+
             renderBoard();
         }
 
@@ -131,69 +104,129 @@ function handleClick(row, col) {
     }
 
     const move = chess.move({
-        from: coordsToSquare(selectedSquare.row, selectedSquare.col),
-        to: clickedSquare,
-        promotion: "q"
+        from:coordsToSquare(
+            selectedSquare.row,
+            selectedSquare.col
+        ),
+        to:clickedSquare,
+        promotion:"q"
     });
 
-    selectedSquare = null;
+    selectedSquare=null;
 
-    if (!move) {
+    if(!move){
+
         renderBoard();
         return;
     }
 
     renderBoard();
 
-    if (!chess.game_over()) {
+    if(!chess.game_over()){
+
         document.getElementById("status").innerText =
-            "🤖 Stockfish Thinking...";
+            "Black Thinking...";
 
-        setTimeout(stockfishMove, 500);
+        setTimeout(aiMove,500);
     }
 }
 
 /*
 ========================
-STOCKFISH MOVE
+SMART AI MOVE
 ========================
 */
-function stockfishMove() {
-    if (!engine) return;
+function aiMove(){
 
-    engine.postMessage("uci");
-    engine.postMessage("position fen " + chess.fen());
-    engine.postMessage("go depth 8");
+    const moves = chess.moves({verbose:true});
+
+    if(moves.length===0) return;
+
+    let bestMoves = [];
+
+    let highestValue = -999;
+
+    moves.forEach(move=>{
+
+        let score = 0;
+
+        if(move.captured){
+
+            const values = {
+                p:1,
+                n:3,
+                b:3,
+                r:5,
+                q:9,
+                k:100
+            };
+
+            score += values[move.captured];
+        }
+
+        if(move.san.includes("+")) score += 2;
+
+        if(score>highestValue){
+
+            highestValue=score;
+
+            bestMoves=[move];
+
+        }else if(score===highestValue){
+
+            bestMoves.push(move);
+        }
+
+    });
+
+    const chosenMove =
+        bestMoves[
+            Math.floor(Math.random()*bestMoves.length)
+        ];
+
+    chess.move(chosenMove);
+
+    renderBoard();
 }
 
 /*
 ========================
-UI UPDATE
+UPDATE UI
 ========================
 */
-function updateUI() {
-    let statusText = "";
+function updateUI(){
 
-    if (chess.in_checkmate()) {
-        statusText =
-            chess.turn() === "w"
-                ? "Checkmate! Black Wins"
-                : "Checkmate! White Wins";
-    } else if (chess.in_draw()) {
-        statusText = "Draw";
-    } else if (chess.in_check()) {
-        statusText =
-            chess.turn() === "w"
-                ? "White in Check"
-                : "Black in Check";
-    } else {
-        statusText =
-            chess.turn() === "w"
-                ? "White to Move"
-                : "Black to Move";
+    let statusText="";
+
+    if(chess.in_checkmate()){
+
+        statusText=
+            chess.turn()==="w"
+            ?"Checkmate! Black Wins"
+            :"Checkmate! White Wins";
+
+    }else if(chess.in_draw()){
+
+        statusText="Draw";
+
+    }else if(chess.in_check()){
+
+        statusText=
+            chess.turn()==="w"
+            ?"White in Check"
+            :"Black in Check";
+
+    }else{
+
+        statusText=
+            chess.turn()==="w"
+            ?"White to Move"
+            :"Black to Move";
     }
 
-    document.getElementById("status").innerText = statusText;
+    document.getElementById("status").innerText =
+        statusText;
+
     document.getElementById("history").innerHTML =
         chess.history().join("<br>");
 }
@@ -203,8 +236,9 @@ function updateUI() {
 HELPERS
 ========================
 */
-function coordsToSquare(row, col) {
-    return "abcdefgh"[col] + (8 - row);
+function coordsToSquare(row,col){
+
+    return "abcdefgh"[col]+(8-row);
 }
 
 /*
@@ -212,9 +246,12 @@ function coordsToSquare(row, col) {
 RESET
 ========================
 */
-function resetGame() {
+function resetGame(){
+
     chess.reset();
-    selectedSquare = null;
+
+    selectedSquare=null;
+
     renderBoard();
 }
 
@@ -223,5 +260,4 @@ function resetGame() {
 START
 ========================
 */
-initEngine();
 renderBoard();
