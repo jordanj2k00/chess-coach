@@ -8,33 +8,40 @@ const pieceMap = {
 let selectedSquare = null;
 
 /*
-========================
-RENDER BOARD
-========================
+OPENING THEORY DATABASE
 */
+const openingLines = [
+    ["e4","e5","Nf3","Nc6","Nc3","Nf6","d4"], // Four Knights Scotch
+    ["e4","e5","Nf3","Nc6","Nc3","Nf6","Nxe5"], // Halloween
+    ["d4","Nf6","c4","g6"], // KID
+    ["e4","Nf6"] // Alekhine
+];
+
 function renderBoard() {
+
     const boardDiv = document.getElementById("board");
+
     boardDiv.innerHTML = "";
 
     const currentBoard = chess.board();
 
-    for(let row=0; row<8; row++){
-        for(let col=0; col<8; col++){
+    for(let row=0;row<8;row++){
+        for(let col=0;col<8;col++){
 
-            const square = document.createElement("div");
+            const square=document.createElement("div");
 
             square.classList.add("square");
             square.classList.add((row+col)%2===0?"light":"dark");
 
-            const piece = currentBoard[row][col];
+            const piece=currentBoard[row][col];
 
             if(piece){
 
-                square.textContent =
+                square.textContent=
                     pieceMap[
                         piece.color==="w"
-                        ? piece.type.toUpperCase()
-                        : piece.type
+                        ?piece.type.toUpperCase()
+                        :piece.type
                     ];
 
                 square.classList.add(
@@ -54,8 +61,8 @@ function renderBoard() {
 
             if(selectedSquare){
 
-                const moves = chess.moves({
-                    square: coordsToSquare(
+                const moves=chess.moves({
+                    square:coordsToSquare(
                         selectedSquare.row,
                         selectedSquare.col
                     ),
@@ -80,20 +87,15 @@ function renderBoard() {
     updateUI();
 }
 
-/*
-========================
-HANDLE CLICK
-========================
-*/
 function handleClick(row,col){
 
-    const clickedSquare = coordsToSquare(row,col);
+    const clickedSquare=coordsToSquare(row,col);
 
     if(!selectedSquare){
 
-        const piece = chess.get(clickedSquare);
+        const piece=chess.get(clickedSquare);
 
-        if(piece && piece.color==="w"){
+        if(piece&&piece.color==="w"){
 
             selectedSquare={row,col};
 
@@ -103,7 +105,7 @@ function handleClick(row,col){
         return;
     }
 
-    const move = chess.move({
+    const move=chess.move({
         from:coordsToSquare(
             selectedSquare.row,
             selectedSquare.col
@@ -122,142 +124,80 @@ function handleClick(row,col){
 
     renderBoard();
 
-    if(!chess.game_over()){
+    coachPlayer();
 
-        document.getElementById("status").innerText =
-            "Black Thinking...";
+    if(!chess.game_over()){
 
         setTimeout(aiMove,500);
     }
 }
 
-/*
-========================
-SMART AI MOVE
-========================
-*/
 function aiMove(){
 
-    const moves = chess.moves({verbose:true});
+    const moves=chess.moves({verbose:true});
 
-    if(moves.length===0) return;
+    const randomMove=
+        moves[Math.floor(Math.random()*moves.length)];
 
-    let bestMoves = [];
-
-    let highestValue = -999;
-
-    moves.forEach(move=>{
-
-        let score = 0;
-
-        if(move.captured){
-
-            const values = {
-                p:1,
-                n:3,
-                b:3,
-                r:5,
-                q:9,
-                k:100
-            };
-
-            score += values[move.captured];
-        }
-
-        if(move.san.includes("+")) score += 2;
-
-        if(score>highestValue){
-
-            highestValue=score;
-
-            bestMoves=[move];
-
-        }else if(score===highestValue){
-
-            bestMoves.push(move);
-        }
-
-    });
-
-    const chosenMove =
-        bestMoves[
-            Math.floor(Math.random()*bestMoves.length)
-        ];
-
-    chess.move(chosenMove);
+    chess.move(randomMove);
 
     renderBoard();
 }
 
-/*
-========================
-UPDATE UI
-========================
-*/
-function updateUI(){
+function coachPlayer(){
 
-    let statusText="";
+    const history=chess.history();
 
-    if(chess.in_checkmate()){
+    let matched=false;
 
-        statusText=
-            chess.turn()==="w"
-            ?"Checkmate! Black Wins"
-            :"Checkmate! White Wins";
+    for(let line of openingLines){
 
-    }else if(chess.in_draw()){
+        let partial=line.slice(0,history.length);
 
-        statusText="Draw";
+        if(JSON.stringify(history)===JSON.stringify(partial)){
 
-    }else if(chess.in_check()){
+            matched=true;
 
-        statusText=
-            chess.turn()==="w"
-            ?"White in Check"
-            :"Black in Check";
+            document.getElementById("coach").innerText=
+                "Excellent. You are following theory.";
 
-    }else{
-
-        statusText=
-            chess.turn()==="w"
-            ?"White to Move"
-            :"Black to Move";
+            return;
+        }
     }
 
-    document.getElementById("status").innerText =
-        statusText;
+    if(!matched){
 
-    document.getElementById("history").innerHTML =
+        document.getElementById("coach").innerText=
+            "You have deviated from your opening prep.";
+    }
+}
+
+function updateUI(){
+
+    document.getElementById("status").innerText=
+        chess.turn()==="w"
+        ?"White to Move"
+        :"Black to Move";
+
+    document.getElementById("history").innerHTML=
         chess.history().join("<br>");
 }
 
-/*
-========================
-HELPERS
-========================
-*/
 function coordsToSquare(row,col){
 
     return "abcdefgh"[col]+(8-row);
 }
 
-/*
-========================
-RESET
-========================
-*/
 function resetGame(){
 
     chess.reset();
 
     selectedSquare=null;
 
+    document.getElementById("coach").innerText=
+        "Ready for battle.";
+
     renderBoard();
 }
 
-/*
-========================
-START
-========================
-*/
 renderBoard();
