@@ -1,3 +1,4 @@
+let currentMode = "computer";
 const chess = new Chess();
 
 const pieceMap = {
@@ -201,3 +202,30 @@ function resetGame(){
 }
 
 renderBoard();
+function changeMode(){
+
+    currentMode =
+        document.getElementById("gameMode").value;
+
+    resetGame();
+
+    if(currentMode==="computer"){
+
+        document.getElementById("coach").innerText =
+            "Computer battle mode activated.";
+
+    }
+
+    if(currentMode==="theory"){
+
+        document.getElementById("coach").innerText =
+            "Opening theory mode activated.";
+
+    }
+
+    if(currentMode==="analysis"){
+
+        document.getElementById("coach").innerText =
+            "Analysis board active.";
+    }
+}
