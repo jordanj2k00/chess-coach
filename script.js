@@ -264,4 +264,32 @@ function changeMode(){
         document.getElementById("coach").innerText =
             "Analysis board active.";
     }
+    function adaptiveCoach(){
+
+    let advice = "Balanced play detected.";
+
+    if(playerProfile.earlyQueenMoves > 3){
+
+        advice =
+        "You often move your queen early. Focus on developing minor pieces first.";
+
+    }
+
+    else if(playerProfile.earlyAttacks > 5){
+
+        advice =
+        "You tend to attack before fully developing. Build first, then strike.";
+
+    }
+
+    else if(playerProfile.pawnRushes > 10){
+
+        advice =
+        "You may push pawns aggressively. Be careful not to weaken your structure.";
+
+    }
+
+    document.getElementById("adaptiveCoach").innerText =
+        advice;
+}
 }
