@@ -6,6 +6,36 @@ let playerProfile = {
     pawnRushes: 0,
     gamesPlayed: 0
 };
+const positionPlans = {
+
+    advanceFrench: {
+        condition: () =>
+            chess.get("e5") &&
+            chess.get("d4"),
+
+        advice:
+            "Advance French structure: Maintain center, prepare kingside pressure, watch for Black's c5 break."
+    },
+
+    kingsideAttack: {
+        condition: () =>
+            chess.get("f4") ||
+            chess.get("h4"),
+
+        advice:
+            "Kingside attack detected: Build pressure near enemy king and look for tactical opportunities."
+    },
+
+    openCenter: {
+        condition: () =>
+            !chess.get("d4") &&
+            !chess.get("e4"),
+
+        advice:
+            "Open center: Prioritize development, active pieces, and tactical awareness."
+    }
+
+};
 
 const pieceMap = {
     p:"♟", r:"♜", n:"♞", b:"♝", q:"♛", k:"♚",
