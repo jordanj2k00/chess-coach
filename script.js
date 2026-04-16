@@ -127,10 +127,10 @@ function handleClick(row,col){
 
     coachPlayer();
 
-    if(!chess.game_over()){
+    if(!chess.game_over() && currentMode==="computer"){
 
-        setTimeout(aiMove,500);
-    }
+    setTimeout(aiMove,500);
+}
 }
 
 function aiMove(){
