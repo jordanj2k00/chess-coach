@@ -44,13 +44,14 @@ select {
 
 /* 🟫 SQUARES */
 .square {
+    width: 100%;
+    aspect-ratio: 1 / 1; /* 🔥 THIS IS THE KEY */
+
     display: flex;
     align-items: center;
     justify-content: center;
 
     position: relative;
-
-    font-size: 32px; /* fallback if emoji used */
     cursor: pointer;
 }
 
