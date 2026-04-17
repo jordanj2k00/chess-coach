@@ -38,7 +38,6 @@ const trainingLines = [
 ];
 
 let trainingLine = null;
-let trainingIndex = 0;
 
 // ======================
 // THEORY MODE
@@ -56,7 +55,6 @@ const openingLines = [
 ];
 
 let theoryLine = null;
-let theoryIndex = 0;
 
 // ======================
 // SAVE / LOAD
@@ -103,12 +101,10 @@ function renderBoard(){
                 square.appendChild(img);
             }
 
-            // Selected
             if(selectedSquare && selectedSquare.row===r && selectedSquare.col===c){
                 square.classList.add("selected");
             }
 
-            // Last move
             if(lastMove){
                 const sq = coordsToSquare(r,c);
                 if(sq===lastMove.from || sq===lastMove.to){
@@ -116,7 +112,6 @@ function renderBoard(){
                 }
             }
 
-            // Best move highlight
             if(bestMoveHighlight){
                 const sq = coordsToSquare(r,c);
                 if(sq===bestMoveHighlight.from || sq===bestMoveHighlight.to){
@@ -124,7 +119,6 @@ function renderBoard(){
                 }
             }
 
-            // Legal moves
             if(selectedSquare){
                 const moves = chess.moves({
                     square: coordsToSquare(selectedSquare.row,selectedSquare.col),
@@ -160,7 +154,6 @@ function handleClick(r,c){
             selectedSquare = {row:r,col:c};
             renderBoard();
         }
-
         return;
     }
 
@@ -189,9 +182,14 @@ function handleClick(r,c){
             "Blunder: You lost material!";
     }
 
-    // TRAINING MODE
+    // ======================
+    // TRAINING MODE (FIXED)
+    // ======================
+
     if(currentMode==="training" && trainingLine){
-        const expected = trainingLine.moves[trainingIndex];
+
+        const history = chess.history();
+        const expected = trainingLine.moves[history.length - 1];
 
         if(moveResult.san !== expected){
             alert("Wrong move! Expected: " + expected);
@@ -200,42 +198,47 @@ function handleClick(r,c){
             return;
         }
 
-        trainingIndex++;
-
-        if(trainingIndex >= trainingLine.moves.length){
-            document.getElementById("coach").innerText = "Training complete!";
+        if(history.length >= trainingLine.moves.length){
+            document.getElementById("coach").innerText =
+                "🔥 Training complete!";
+        } else {
+            document.getElementById("coach").innerText =
+                "Next: " + trainingLine.moves[history.length];
         }
     }
 
-    // THEORY MODE
+    // ======================
+    // THEORY MODE (FIXED)
+    // ======================
+
     if(currentMode==="theory" && theoryLine){
 
-        const expectedMove = theoryLine.moves[theoryIndex];
+        const history = chess.history();
+        const expected = theoryLine.moves[history.length - 1];
 
-        if(moveResult.san !== expectedMove){
-            alert("Wrong move! Expected: " + expectedMove);
+        if(moveResult.san !== expected){
+            alert("Wrong move! Expected: " + expected);
             chess.undo();
             renderBoard();
             return;
         }
 
-        theoryIndex++;
+        // Play opponent move automatically
+        if(history.length < theoryLine.moves.length){
 
-        if(theoryIndex < theoryLine.moves.length){
-
-            const opponentMove = theoryLine.moves[theoryIndex];
+            const opponentMove = theoryLine.moves[history.length];
 
             setTimeout(()=>{
                 const move = chess.move(opponentMove);
                 lastMove = move;
 
-                theoryIndex++;
-
                 renderBoard();
 
-                if(theoryIndex < theoryLine.moves.length){
+                const newHistory = chess.history();
+
+                if(newHistory.length < theoryLine.moves.length){
                     document.getElementById("coach").innerText =
-                        "Next: " + theoryLine.moves[theoryIndex];
+                        "Next: " + theoryLine.moves[newHistory.length];
                 } else {
                     document.getElementById("coach").innerText =
                         "🔥 Theory complete!";
@@ -378,18 +381,16 @@ function changeMode(){
 
     if(currentMode==="training"){
         trainingLine = trainingLines[Math.floor(Math.random()*trainingLines.length)];
-        trainingIndex = 0;
 
         document.getElementById("coach").innerText =
-            "Training: " + trainingLine.name;
+            "Next: " + trainingLine.moves[0];
     }
 
     if(currentMode==="theory"){
         theoryLine = openingLines[Math.floor(Math.random()*openingLines.length)];
-        theoryIndex = 0;
 
         document.getElementById("coach").innerText =
-            "Play: " + theoryLine.moves[0];
+            "Next: " + theoryLine.moves[0];
     }
 }
 
