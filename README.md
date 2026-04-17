@@ -1,4 +1,4 @@
-# chess-coach# ♟ Liquid Grave Chess Coach
+# ♟ Liquid Grave Chess Coach
 
 A personalized chess training app that adapts to your playstyle, teaches your repertoire, and analyzes your games in real time.
 
