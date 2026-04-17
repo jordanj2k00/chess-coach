@@ -126,8 +126,8 @@ function renderBoard(){
 
             // LAST MOVE
             if(lastMove){
-                const from = coordsToSquare(r,c);
-                if(from===lastMove.from || from===lastMove.to){
+                const sq = coordsToSquare(r,c);
+                if(sq===lastMove.from || sq===lastMove.to){
                     square.classList.add("last-move");
                 }
             }
@@ -191,12 +191,15 @@ function handleClick(r,c){
     const afterEval = evaluateBoard();
 
     // BLUNDER DETECTION
-    if(afterEval < beforeEval - 20){
+    if(afterEval < beforeEval - 2){
         document.getElementById("coach").innerText =
             "Blunder: You lost material!";
     }
 
-    // TRAINING MODE
+    // ======================
+    // TRAINING MODE (FIXED)
+    // ======================
+
     if(currentMode==="training" && trainingLine){
 
         const expected = trainingLine.moves[trainingIndex];
@@ -210,6 +213,27 @@ function handleClick(r,c){
 
         trainingIndex++;
 
+        // Auto-play opponent move
+        if(trainingIndex < trainingLine.moves.length){
+
+            const opponentMove = trainingLine.moves[trainingIndex];
+
+            setTimeout(()=>{
+                const move = chess.move(opponentMove);
+                lastMove = move;
+                renderBoard();
+            },400);
+
+            trainingIndex++;
+        }
+
+        // Show next move
+        if(trainingIndex < trainingLine.moves.length){
+            document.getElementById("coach").innerText =
+                "Play: " + trainingLine.moves[trainingIndex];
+        }
+
+        // Finished
         if(trainingIndex >= trainingLine.moves.length){
             document.getElementById("coach").innerText =
                 "Training complete!";
@@ -279,7 +303,7 @@ function evaluateBoard(){
 }
 
 // ======================
-// COACH SYSTEM
+// UI + COACH
 // ======================
 
 function updateUI(){
@@ -349,7 +373,8 @@ function changeMode(){
         trainingIndex = 0;
 
         document.getElementById("coach").innerText =
-            "Training: " + trainingLine.name;
+            "Training: " + trainingLine.name +
+            " | Play: " + trainingLine.moves[0];
     }
 }
 
