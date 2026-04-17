@@ -29,93 +29,205 @@ let playerProfile = {
 };
 
 // ======================
-// OPENING REPERTOIRE
+// REPERTOIRE TREE
 // ======================
 
-const openingLines = [
-    {
-        name: "Four Knights Game",
-        moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6"]
-    },
-    {
-        name: "Four Knights Scotch",
-        moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "d4"]
-    },
-    {
-        name: "Three Knights Game",
-        moves: ["e4", "e5", "Nf3", "Nc6", "Nc3"]
-    },
-    {
-        name: "Scotch Game",
-        moves: ["e4", "e5", "Nf3", "Nc6", "d4", "exd4", "Nxd4"]
-    },
-    {
-        name: "Italian Game",
-        moves: ["e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "c3"]
-    },
-    {
-        name: "Giuoco Piano",
-        moves: ["e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5"]
-    },
-    {
-        name: "Ruy Lopez",
-        moves: ["e4", "e5", "Nf3", "Nc6", "Bb5", "a6"]
-    },
-    {
-        name: "Vienna Game",
-        moves: ["e4", "e5", "Nc3", "Nf6", "f4"]
-    },
-    {
-        name: "King's Gambit",
-        moves: ["e4", "e5", "f4", "exf4", "Nf3"]
-    },
-    {
-        name: "French Defense: Advance",
-        moves: ["e4", "e6", "d4", "d5", "e5", "c5"]
-    },
-    {
-        name: "French Defense: Exchange",
-        moves: ["e4", "e6", "d4", "d5", "exd5", "exd5"]
-    },
-    {
-        name: "French Defense: Classical",
-        moves: ["e4", "e6", "d4", "d5", "Nc3", "Nf6"]
-    },
-    {
-        name: "Caro-Kann: Advance",
-        moves: ["e4", "c6", "d4", "d5", "e5", "Bf5"]
-    },
-    {
-        name: "Sicilian Defense: Open",
-        moves: ["e4", "c5", "Nf3", "d6", "d4", "cxd4", "Nxd4", "Nf6"]
-    },
-    {
-        name: "Alekhine Defense",
-        moves: ["e4", "Nf6", "e5", "Nd5", "d4"]
-    },
-    {
-        name: "King's Indian Defense",
-        moves: ["d4", "Nf6", "c4", "g6", "Nc3", "Bg7", "e4", "d6"]
-    },
-    {
-        name: "Queen's Gambit Declined",
-        moves: ["d4", "d5", "c4", "e6", "Nc3", "Nf6"]
-    },
-    {
-        name: "London System",
-        moves: ["d4", "d5", "Nf3", "Nf6", "Bf4"]
-    },
-    {
-        name: "Nimzo-Indian Defense",
-        moves: ["d4", "Nf6", "c4", "e6", "Nc3", "Bb4"]
-    },
-    {
-        name: "Dutch Defense",
-        moves: ["d4", "f5", "c4", "Nf6", "g3", "e6", "Bg2", "Be7"]
-    }
-];
+const repertoireTree = {
+    white: {
+        fourKnightsScotch: {
+            name: "Four Knights Scotch",
+            side: "white",
+            branches: [
+                {
+                    name: "Main Line",
+                    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "d4"],
+                    plan: "Fast development, central strike, open files, active pieces."
+                },
+                {
+                    name: "4...exd4 5.Nxd4",
+                    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "d4", "exd4", "Nxd4"],
+                    plan: "Recapture with the knight, keep pieces active, and use the open center."
+                },
+                {
+                    name: "4...Bb4 Pin",
+                    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "d4", "Bb4", "Bd2", "exd4"],
+                    plan: "Break the pin, keep development calm, and fight for the center."
+                },
+                {
+                    name: "4...d5 Break",
+                    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "d4", "d5", "exd5", "Nxd5"],
+                    plan: "Meet the central break, simplify if needed, and keep piece activity."
+                }
+            ]
+        },
 
-const trainingLines = openingLines.slice();
+        threeKnights: {
+            name: "Three Knights Game",
+            side: "white",
+            branches: [
+                {
+                    name: "Transposition to Four Knights",
+                    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "d4"],
+                    plan: "Transpose into Four Knights territory and choose Scotch ideas."
+                },
+                {
+                    name: "Italian Setup with ...Bc5",
+                    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Bc5", "Bc4", "Nf6", "d3"],
+                    plan: "Develop naturally, pressure f7, and castle smoothly."
+                },
+                {
+                    name: "Fianchetto Setup",
+                    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "g6", "Bc4", "Bg7", "d3"],
+                    plan: "Use calm development, occupy the center, and punish the slower setup."
+                }
+            ]
+        },
+
+        frenchAdvance: {
+            name: "French Defense: Advance Variation",
+            side: "white",
+            branches: [
+                {
+                    name: "Main Line ...c5",
+                    moves: ["e4", "e6", "d4", "d5", "e5", "c5", "c3", "Nc6", "Nf3"],
+                    plan: "Keep the center closed, support d4, and prepare kingside play."
+                },
+                {
+                    name: "...Qb6 Pressure",
+                    moves: ["e4", "e6", "d4", "d5", "e5", "Qb6", "Nf3", "Nc6", "c3"],
+                    plan: "Defend the center calmly and keep the space advantage."
+                },
+                {
+                    name: "...Nc6 Classical",
+                    moves: ["e4", "e6", "d4", "d5", "e5", "Nc6", "c3", "Qb6", "Bd3"],
+                    plan: "Develop smoothly and aim for a strong pawn chain and kingside initiative."
+                }
+            ]
+        },
+
+        caroKannTal: {
+            name: "Caro-Kann: Tal Variation",
+            side: "white",
+            branches: [
+                {
+                    name: "Main Tal Attack",
+                    moves: ["e4", "c6", "d4", "d5", "e5", "Bf5", "h4", "e6"],
+                    plan: "Use space, hit the bishop, and build direct kingside pressure."
+                },
+                {
+                    name: "...h5",
+                    moves: ["e4", "c6", "d4", "d5", "e5", "Bf5", "h4", "h5", "Bd3"],
+                    plan: "Keep attacking themes alive and stay aggressive on the kingside."
+                },
+                {
+                    name: "...c5",
+                    moves: ["e4", "c6", "d4", "d5", "e5", "Bf5", "h4", "c5", "Bd3"],
+                    plan: "Stay alert to counterplay and keep the attack rolling."
+                }
+            ]
+        },
+
+        sicilianGrandPrix: {
+            name: "Sicilian Defense: Grand Prix Attack",
+            side: "white",
+            branches: [
+                {
+                    name: "...Nc6",
+                    moves: ["e4", "c5", "Nc3", "Nc6", "f4", "g6", "Nf3"],
+                    plan: "Build the Grand Prix setup and launch a kingside attack."
+                },
+                {
+                    name: "...d6",
+                    moves: ["e4", "c5", "Nc3", "d6", "f4", "Nc6", "Nf3"],
+                    plan: "Keep the attacking structure and strike before Black settles."
+                },
+                {
+                    name: "...e6",
+                    moves: ["e4", "c5", "Nc3", "e6", "f4", "d5"],
+                    plan: "Keep the initiative and stay ready for central breaks."
+                }
+            ]
+        }
+    },
+
+    black: {
+        kingsIndianDefense: {
+            name: "King's Indian Defense",
+            side: "black",
+            branches: [
+                {
+                    name: "Classical",
+                    moves: ["d4", "Nf6", "c4", "g6", "Nc3", "Bg7", "e4", "d6", "Nf3", "O-O"],
+                    plan: "Challenge the center later and prepare the kingside attack."
+                },
+                {
+                    name: "Fianchetto",
+                    moves: ["d4", "Nf6", "c4", "g6", "Nf3", "Bg7", "g3", "O-O", "Bg2"],
+                    plan: "Play for central breaks and active piece play."
+                },
+                {
+                    name: "Sämisch",
+                    moves: ["d4", "Nf6", "c4", "g6", "Nc3", "Bg7", "f3", "O-O", "e4"],
+                    plan: "Attack the center, keep the position flexible, and prepare counterplay."
+                },
+                {
+                    name: "Four Pawns",
+                    moves: ["d4", "Nf6", "c4", "g6", "e4", "Bg7", "f4", "d6", "Nf3"],
+                    plan: "Strike the center fast and punish overextension with timely breaks."
+                }
+            ]
+        },
+
+        alekhineDefense: {
+            name: "Alekhine Defense",
+            side: "black",
+            branches: [
+                {
+                    name: "Main Line",
+                    moves: ["e4", "Nf6", "e5", "Nd5", "d4", "d6", "Nf3"],
+                    plan: "Attack White's center later with ...d6 and ...c5 ideas."
+                },
+                {
+                    name: "Exchange Structure",
+                    moves: ["e4", "Nf6", "e5", "Nd5", "d4", "d6", "c4", "Nb6"],
+                    plan: "Use the central tension and piece activity to equalize and counterattack."
+                },
+                {
+                    name: "Four Pawns Attack",
+                    moves: ["e4", "Nf6", "e5", "Nd5", "d4", "d6", "c4", "Nb6", "f4"],
+                    plan: "Stay flexible, hit the center from the sides, and exploit overextension."
+                }
+            ]
+        }
+    }
+};
+
+function buildRepertoireLessons(tree) {
+    const lessons = [];
+
+    for (const sideGroup of Object.values(tree)) {
+        for (const opening of Object.values(sideGroup)) {
+            for (const branch of opening.branches) {
+                lessons.push({
+                    side: opening.side,
+                    opening: opening.name,
+                    branch: branch.name,
+                    name: `${opening.name} - ${branch.name}`,
+                    moves: branch.moves,
+                    plan: branch.plan
+                });
+            }
+        }
+    }
+
+    return lessons;
+}
+
+const repertoireLessons = buildRepertoireLessons(repertoireTree);
+
+// ======================
+// CURRENT LESSON STATE
+// ======================
 
 let trainingLine = null;
 let theoryLine = null;
@@ -130,12 +242,6 @@ const positionPlans = {
             chess.get("e5") && chess.get("d4") && chess.get("e6"),
         advice:
             "French Advance: space advantage. Keep the center locked and attack the kingside."
-    },
-    frenchExchange: {
-        condition: () =>
-            chess.get("d4") && chess.get("e6") && !chess.get("e5"),
-        advice:
-            "French Exchange: simplify, develop fast, and target the center."
     },
     kingsideAttack: {
         condition: () =>
@@ -182,7 +288,7 @@ function loadProgress() {
         playerElo = Number.isFinite(data.playerElo) ? data.playerElo : 1200;
         aiElo = Number.isFinite(data.aiElo) ? data.aiElo : playerElo + 100;
     } catch {
-        // Ignore malformed saved data
+        // ignore malformed saved data
     }
 }
 
@@ -198,6 +304,46 @@ function getPieceImage(piece) {
     return `https://chessboardjs.com/img/chesspieces/wikipedia/${piece.color}${piece.type.toUpperCase()}.png`;
 }
 
+function normalizeSan(san) {
+    return String(san || "").replace(/[+#?!]/g, "");
+}
+
+function commonPrefixLength(a, b) {
+    const limit = Math.min(a.length, b.length);
+
+    for (let i = 0; i < limit; i++) {
+        if (normalizeSan(a[i]) !== normalizeSan(b[i])) {
+            return i;
+        }
+    }
+
+    return limit;
+}
+
+function pickRandomLesson() {
+    return repertoireLessons[Math.floor(Math.random() * repertoireLessons.length)];
+}
+
+function getActiveLesson() {
+    if (currentMode === "training") return trainingLine;
+    if (currentMode === "theory") return theoryLine;
+    return null;
+}
+
+function lessonUserColor(lesson) {
+    return lesson && lesson.side === "black" ? "b" : "w";
+}
+
+function getCurrentUserColor() {
+    const lesson = getActiveLesson();
+
+    if (lesson) {
+        return lessonUserColor(lesson);
+    }
+
+    return "w";
+}
+
 function syncLastMoveFromHistory() {
     const history = chess.history({ verbose: true });
     lastMove = history.length ? history[history.length - 1] : null;
@@ -205,63 +351,67 @@ function syncLastMoveFromHistory() {
 
 function findLegalMoveBySan(targetSan) {
     if (!targetSan) return null;
-    return chess.moves({ verbose: true }).find(move => move.san === targetSan) || null;
+
+    const target = normalizeSan(targetSan);
+
+    return chess.moves({ verbose: true }).find(
+        move => normalizeSan(move.san) === target
+    ) || null;
 }
 
-function findOpeningCandidates(history) {
-    if (!history || history.length === 0) return [];
+function findBestRepertoireMatch(history) {
+    let best = null;
+    let bestLen = 0;
 
-    return openingLines.filter(line => {
-        if (history.length > line.moves.length) return false;
+    for (const lesson of repertoireLessons) {
+        const prefixLen = commonPrefixLength(history, lesson.moves);
 
-        for (let i = 0; i < history.length; i++) {
-            if (line.moves[i] !== history[i]) return false;
+        if (prefixLen > bestLen) {
+            best = {
+                ...lesson,
+                matchedPlies: prefixLen,
+                complete: prefixLen >= lesson.moves.length
+            };
+            bestLen = prefixLen;
         }
-        return true;
-    });
-}
+    }
 
-function formatOpeningCandidates(candidates) {
-    const names = candidates.slice(0, 4).map(line => line.name);
-    if (candidates.length > 4) names.push("...");
-    return names.join(" / ");
+    return best;
 }
 
 function getAnalysisCoachText() {
     const history = chess.history();
     const evalScore = evaluateBoard().toFixed(2);
+    const bestText = bestMoveHighlight ? `Best: ${bestMoveHighlight.san}` : "";
+    const match = findBestRepertoireMatch(history);
 
-    if (history.length === 0) {
-        const bestText = bestMoveHighlight ? `Best: ${bestMoveHighlight.san}` : "";
-        return ["Opening: Starting position", `Eval: ${evalScore}`, bestText]
-            .filter(Boolean)
-            .join("\n");
+    if (!match) {
+        return [
+            "Opening: Unrecognized",
+            `Eval: ${evalScore}`,
+            bestText
+        ].filter(Boolean).join("\n");
     }
 
-    const candidates = findOpeningCandidates(history);
-    const openingText = candidates.length
-        ? `Theory: ${formatOpeningCandidates(candidates)}`
-        : "Theory: Out of book";
-
-    const bestText = bestMoveHighlight ? `Best: ${bestMoveHighlight.san}` : "";
-
-    return [openingText, `Eval: ${evalScore}`, bestText]
-        .filter(Boolean)
-        .join("\n");
+    return [
+        `Opening: ${match.opening}`,
+        `Branch: ${match.branch}`,
+        `In book: ${match.matchedPlies}/${match.moves.length} plies`,
+        `Plan: ${match.plan}`,
+        `Eval: ${evalScore}`,
+        bestText
+    ].filter(Boolean).join("\n");
 }
 
-function getSearchDepth() {
-    if (currentMode === "analysis") return 3;
-    if (aiElo < 1000) return 1;
-    if (aiElo < 1400) return 2;
-    return 3;
-}
+function lessonCoachText(label, lesson, nextMove) {
+    const sideText = lesson.side === "white" ? "White" : "Black";
 
-function getMistakeChance() {
-    if (aiElo < 1000) return 0.30;
-    if (aiElo < 1400) return 0.18;
-    if (aiElo < 1700) return 0.08;
-    return 0.03;
+    return [
+        `${label}: ${lesson.opening} - ${lesson.branch}`,
+        `Side: ${sideText}`,
+        `Plan: ${lesson.plan}`,
+        nextMove ? `Next: ${nextMove}` : `${label} complete!`
+    ].join("\n");
 }
 
 // ======================
@@ -291,6 +441,20 @@ function evaluateBoard() {
     });
 
     return score;
+}
+
+function getSearchDepth() {
+    if (currentMode === "analysis") return 3;
+    if (aiElo < 1000) return 1;
+    if (aiElo < 1400) return 2;
+    return 3;
+}
+
+function getMistakeChance() {
+    if (aiElo < 1000) return 0.30;
+    if (aiElo < 1400) return 0.18;
+    if (aiElo < 1700) return 0.08;
+    return 0.03;
 }
 
 function minimax(depth, alpha, beta) {
@@ -362,12 +526,9 @@ function chooseAiMove() {
     const ranked = rankMoves(getSearchDepth());
     if (!ranked.length) return null;
 
-    const mistakeChance = getMistakeChance();
-
-    if (Math.random() < mistakeChance && ranked.length > 1) {
+    if (Math.random() < getMistakeChance() && ranked.length > 1) {
         const poolSize = Math.min(3, ranked.length);
-        const choice = ranked[Math.floor(Math.random() * poolSize)];
-        return choice.move;
+        return ranked[Math.floor(Math.random() * poolSize)].move;
     }
 
     return ranked[0].move;
@@ -422,11 +583,11 @@ function maybeFinalizeComputerGame() {
 }
 
 // ======================
-// PLAYER TENDENCY TRACKING
+// PROFILE TRACKING
 // ======================
 
 function updatePlayerProfile(moveResult) {
-    if (currentMode === "analysis") return;
+    if (currentMode !== "computer") return;
 
     const plies = chess.history().length;
 
@@ -444,17 +605,100 @@ function updatePlayerProfile(moveResult) {
 }
 
 // ======================
+// LESSON START / AUTO-PLAY
+// ======================
+
+function autoPlayLessonPrelude(lesson, label) {
+    if (!lesson) return;
+
+    const userColor = lessonUserColor(lesson);
+
+    while (chess.turn() !== userColor) {
+        const idx = chess.history().length;
+        const san = lesson.moves[idx];
+
+        if (!san) break;
+
+        const move = chess.move(san);
+        if (!move) break;
+
+        lastMove = move;
+    }
+
+    syncLastMoveFromHistory();
+
+    const next = lesson.moves[chess.history().length];
+
+    document.getElementById("coach").innerText =
+        lessonCoachText(label, lesson, next || null);
+
+    renderBoard();
+}
+
+// ======================
+// LESSON PROCESSING
+// ======================
+
+function processLessonMove(lesson, label, moveResult) {
+    clearTimeout(lessonTimeoutId);
+    lessonTimeoutId = null;
+
+    const history = chess.history();
+    const expected = lesson.moves[history.length - 1];
+
+    if (typeof expected === "undefined") {
+        document.getElementById("coach").innerText = `${label} complete!`;
+        renderBoard();
+        return;
+    }
+
+    if (normalizeSan(moveResult.san) !== normalizeSan(expected)) {
+        alert(`Wrong move! Expected: ${expected}`);
+        chess.undo();
+        syncLastMoveFromHistory();
+        renderBoard();
+        return;
+    }
+
+    const nextSan = lesson.moves[history.length];
+    document.getElementById("coach").innerText =
+        lessonCoachText(label, lesson, nextSan || null);
+
+    if (nextSan) {
+        lessonTimeoutId = setTimeout(() => {
+            if (chess.game_over()) return;
+
+            const reply = chess.move(nextSan);
+            if (!reply) return;
+
+            lastMove = reply;
+            syncLastMoveFromHistory();
+            renderBoard();
+
+            const newHistory = chess.history();
+            const upcoming = lesson.moves[newHistory.length];
+
+            document.getElementById("coach").innerText =
+                lessonCoachText(label, lesson, upcoming || null);
+
+            saveProgress();
+        }, 400);
+    }
+
+    renderBoard();
+}
+
+// ======================
 // BOARD RENDER
 // ======================
 
 function refreshHints() {
     lessonMoveHighlight = null;
 
-    if (currentMode === "training" && trainingLine) {
-        const nextSan = trainingLine.moves[chess.history().length];
-        lessonMoveHighlight = findLegalMoveBySan(nextSan);
-    } else if (currentMode === "theory" && theoryLine) {
-        const nextSan = theoryLine.moves[chess.history().length];
+    const activeLesson = getActiveLesson();
+
+    if (activeLesson && (currentMode === "training" || currentMode === "theory")) {
+        const nextSan = activeLesson.moves[chess.history().length];
         lessonMoveHighlight = findLegalMoveBySan(nextSan);
     }
 
@@ -530,63 +774,6 @@ function renderBoard() {
 }
 
 // ======================
-// LESSON MODES
-// ======================
-
-function processLessonMove(line, label, moveResult) {
-    const history = chess.history();
-    const expected = line.moves[history.length - 1];
-
-    if (moveResult.san !== expected) {
-        document.getElementById("coach").innerText =
-            `Wrong move! Expected: ${expected}`;
-
-        alert(`Wrong move! Expected: ${expected}`);
-
-        chess.undo();
-        syncLastMoveFromHistory();
-        renderBoard();
-
-        return { valid: false };
-    }
-
-    const nextSan = line.moves[history.length];
-
-    if (nextSan) {
-        document.getElementById("coach").innerText =
-            `${label}: ${line.name}\nNext: ${nextSan}`;
-
-        clearTimeout(lessonTimeoutId);
-        lessonTimeoutId = setTimeout(() => {
-            if (chess.game_over()) return;
-
-            const reply = chess.move(nextSan);
-            lastMove = reply;
-            syncLastMoveFromHistory();
-            renderBoard();
-
-            const newHistory = chess.history();
-            const upcoming = line.moves[newHistory.length];
-
-            if (upcoming) {
-                document.getElementById("coach").innerText =
-                    `${label}: ${line.name}\nNext: ${upcoming}`;
-            } else {
-                document.getElementById("coach").innerText =
-                    `${label} complete!`;
-            }
-
-            maybeFinalizeComputerGame();
-        }, 400);
-    } else {
-        document.getElementById("coach").innerText =
-            `${label} complete!`;
-    }
-
-    return { valid: true };
-}
-
-// ======================
 // CLICK LOGIC
 // ======================
 
@@ -595,8 +782,12 @@ function handleClick(r, c) {
 
     if (!selectedSquare) {
         const piece = chess.get(sq);
+        const userColor = getCurrentUserColor();
 
-        if (piece && (currentMode === "analysis" || piece.color === "w")) {
+        if (piece && (
+            currentMode === "analysis" ||
+            (piece.color === userColor && chess.turn() === userColor)
+        )) {
             selectedSquare = { row: r, col: c };
             renderBoard();
         }
@@ -623,28 +814,24 @@ function handleClick(r, c) {
 
     lastMove = moveResult;
 
-    if (currentMode !== "analysis") {
-        updatePlayerProfile(moveResult);
-    }
+    updatePlayerProfile(moveResult);
 
     const afterEval = evaluateBoard();
 
-    if (currentMode !== "analysis" && afterEval < beforeEval - 2) {
+    if (currentMode === "computer" && afterEval < beforeEval - 2) {
         document.getElementById("coach").innerText =
             "Blunder: You lost material!";
     }
 
     if (currentMode === "training" && trainingLine) {
-        const lesson = processLessonMove(trainingLine, "Training", moveResult);
+        processLessonMove(trainingLine, "Training", moveResult);
         saveProgress();
-        renderBoard();
         return;
     }
 
     if (currentMode === "theory" && theoryLine) {
-        const lesson = processLessonMove(theoryLine, "Theory", moveResult);
+        processLessonMove(theoryLine, "Theory", moveResult);
         saveProgress();
-        renderBoard();
         return;
     }
 
@@ -674,7 +861,7 @@ function aiMove() {
 }
 
 // ======================
-// BEST MOVE BUTTON
+// BEST MOVE
 // ======================
 
 function showBestMove() {
@@ -706,7 +893,7 @@ function updateUI() {
 }
 
 // ======================
-// COACHING
+// COACH
 // ======================
 
 function adaptiveCoach() {
@@ -746,22 +933,19 @@ function changeMode() {
     clearTimeout(lessonTimeoutId);
     lessonTimeoutId = null;
 
+    trainingLine = null;
+    theoryLine = null;
+
     resetGame();
-    bestMoveHighlight = null;
-    lessonMoveHighlight = null;
 
     if (currentMode === "training") {
-        trainingLine = trainingLines[Math.floor(Math.random() * trainingLines.length)];
-
-        document.getElementById("coach").innerText =
-            `Training: ${trainingLine.name}\nNext: ${trainingLine.moves[0]}`;
+        trainingLine = pickRandomLesson();
+        autoPlayLessonPrelude(trainingLine, "Training");
     }
 
     if (currentMode === "theory") {
-        theoryLine = openingLines[Math.floor(Math.random() * openingLines.length)];
-
-        document.getElementById("coach").innerText =
-            `Theory: ${theoryLine.name}\nNext: ${theoryLine.moves[0]}`;
+        theoryLine = pickRandomLesson();
+        autoPlayLessonPrelude(theoryLine, "Theory");
     }
 
     if (currentMode === "analysis") {
@@ -784,6 +968,16 @@ function resetGame() {
     bestMoveHighlight = null;
     lessonMoveHighlight = null;
     gameResultRecorded = false;
+
+    if (currentMode === "training" && trainingLine) {
+        autoPlayLessonPrelude(trainingLine, "Training");
+        return;
+    }
+
+    if (currentMode === "theory" && theoryLine) {
+        autoPlayLessonPrelude(theoryLine, "Theory");
+        return;
+    }
 
     renderBoard();
 }
