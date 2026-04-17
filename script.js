@@ -17,6 +17,8 @@ const chess = new Chess();
 
 let selectedSquare = null;
 let lastMove = null;
+let trainingLine = null;
+let trainingIndex = 0;
 
 /* PLAYER PROFILE */
 let playerProfile = {
