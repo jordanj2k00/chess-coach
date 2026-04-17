@@ -1,3 +1,7 @@
+/* ======================
+   GLOBAL
+====================== */
+
 body {
     margin: 0;
     font-family: Arial, sans-serif;
@@ -6,7 +10,10 @@ body {
     text-align: center;
 }
 
-/* BOARD */
+/* ======================
+   BOARD
+====================== */
+
 #board {
     width: 90vw;
     max-width: 500px;
@@ -14,20 +21,33 @@ body {
     margin: 20px auto;
     display: grid;
     grid-template-columns: repeat(8, 1fr);
+
     border: 6px solid gold;
-    border-radius: 10px;
+    border-radius: 12px;
+
     box-shadow: 0 0 25px gold;
+
     overflow: hidden;
 }
 
-/* SQUARES */
+/* ======================
+   SQUARES (FIXED)
+====================== */
+
 .square {
     width: 100%;
-    height: 100%;
+    aspect-ratio: 1 / 1; /* 🔥 GUARANTEES PERFECT SQUARES */
+
     display: flex;
     align-items: center;
     justify-content: center;
+
+    position: relative;
+
+    transition: all 0.15s ease;
 }
+
+/* COLORS */
 
 .light {
     background: #e0c9a6;
@@ -37,56 +57,108 @@ body {
     background: #b58863;
 }
 
-/* PIECES */
+/* ======================
+   PIECES (FIXED)
+====================== */
+
 .piece-img {
     width: 80%;
-    height: auto;
+    height: auto;              /* 🔥 PREVENTS STRETCHING */
     object-fit: contain;
+
     display: block;
     margin: auto;
+
+    pointer-events: none;
 }
 
+/* ======================
+   INTERACTIONS
+====================== */
+
 /* SELECTED */
+
 .selected {
     outline: 3px solid yellow;
+    z-index: 2;
 }
 
 /* LEGAL MOVE */
+
 .legal {
-    box-shadow: inset 0 0 10px rgba(0,255,0,0.7);
+    box-shadow: inset 0 0 12px rgba(0, 255, 0, 0.7);
 }
 
 /* LAST MOVE */
+
 .last-move {
-    box-shadow: inset 0 0 15px rgba(255,255,0,0.7);
+    box-shadow: inset 0 0 15px rgba(255, 255, 0, 0.8);
 }
 
-/* BEST MOVE */
+/* BEST MOVE (CYAN ENGINE STYLE) */
+
 .best-move {
-    box-shadow: inset 0 0 20px rgba(0,255,255,0.9);
+    box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.9);
     border: 2px solid cyan;
 }
 
-/* BUTTONS */
+/* ======================
+   BUTTONS
+====================== */
+
 button {
     background: gold;
     border: none;
-    padding: 12px 20px;
+
+    padding: 14px 22px;
     margin: 10px;
+
     font-size: 16px;
     font-weight: bold;
+
     border-radius: 10px;
+
     cursor: pointer;
+
+    transition: all 0.2s ease;
 }
 
 button:hover {
     background: #ffd700;
+    transform: scale(1.05);
 }
 
-/* PANELS */
+/* ======================
+   PANELS
+====================== */
+
 .panel {
     background: #1c2f4f;
+
     margin: 15px;
     padding: 15px;
+
     border-radius: 15px;
+
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+/* ======================
+   STATUS TEXT
+====================== */
+
+#status {
+    font-size: 18px;
+    margin-top: 10px;
+}
+
+/* ======================
+   DROPDOWN
+====================== */
+
+select {
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    font-size: 16px;
 }
