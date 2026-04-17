@@ -4,10 +4,36 @@
 
 body {
     margin: 0;
+    padding: 18px 0 40px;
     font-family: Arial, sans-serif;
-    background: radial-gradient(circle, #0a1f44, #020b1c);
+    background: radial-gradient(circle at top, #0a1f44 0%, #020b1c 70%);
     color: white;
     text-align: center;
+    overflow-x: hidden;
+}
+
+/* ======================
+   TITLE + SELECT
+====================== */
+
+h1 {
+    margin: 10px 0 18px;
+    font-size: clamp(28px, 6vw, 48px);
+    line-height: 1.05;
+    color: #ffffff;
+}
+
+select {
+    width: min(86vw, 460px);
+    padding: 12px 16px;
+    border: none;
+    border-radius: 14px;
+    background: #e8e8e8;
+    color: #111;
+    font-size: 18px;
+    font-weight: 700;
+    margin: 8px 0 18px;
+    outline: none;
 }
 
 /* ======================
@@ -15,91 +41,88 @@ body {
 ====================== */
 
 #board {
-    width: 90vw;
-    max-width: 500px;
+    width: min(92vw, 560px);
     aspect-ratio: 1 / 1;
-    margin: 20px auto;
+    margin: 14px auto 22px;
     display: grid;
     grid-template-columns: repeat(8, 1fr);
-
-    border: 6px solid gold;
-    border-radius: 12px;
-
-    box-shadow: 0 0 25px gold;
-
+    border: 6px solid #ffd400;
+    border-radius: 16px;
     overflow: hidden;
+    box-shadow:
+        0 0 18px rgba(255, 212, 0, 0.55),
+        0 0 42px rgba(255, 212, 0, 0.18);
 }
 
 /* ======================
-   SQUARES (FIXED)
+   SQUARES
 ====================== */
 
 .square {
     width: 100%;
-    aspect-ratio: 1 / 1; /* 🔥 GUARANTEES PERFECT SQUARES */
-
+    aspect-ratio: 1 / 1;
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-
-    position: relative;
-
-    transition: all 0.15s ease;
+    box-sizing: border-box;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
 }
 
-/* COLORS */
-
 .light {
-    background: #e0c9a6;
+    background: #ecd9b5;
 }
 
 .dark {
-    background: #b58863;
+    background: #b88a63;
 }
 
 /* ======================
-   PIECES (FIXED)
+   PIECES
 ====================== */
 
 .piece-img {
     width: 80%;
-    height: auto;              /* 🔥 PREVENTS STRETCHING */
-    object-fit: contain;
-
+    height: auto;
     display: block;
-    margin: auto;
-
+    object-fit: contain;
     pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
 }
 
 /* ======================
-   INTERACTIONS
+   HIGHLIGHTS
 ====================== */
 
-/* SELECTED */
-
 .selected {
-    outline: 3px solid yellow;
+    outline: 3px solid rgba(255, 255, 0, 0.95);
+    outline-offset: -3px;
     z-index: 2;
 }
 
-/* LEGAL MOVE */
-
 .legal {
-    box-shadow: inset 0 0 12px rgba(0, 255, 0, 0.7);
+    box-shadow: inset 0 0 0 9999px rgba(0, 255, 0, 0.10);
 }
-
-/* LAST MOVE */
 
 .last-move {
-    box-shadow: inset 0 0 15px rgba(255, 255, 0, 0.8);
+    box-shadow: inset 0 0 0 9999px rgba(255, 230, 0, 0.18);
 }
 
-/* BEST MOVE (CYAN ENGINE STYLE) */
+.lesson-move {
+    box-shadow:
+        inset 0 0 0 9999px rgba(0, 255, 140, 0.18),
+        inset 0 0 14px rgba(0, 255, 140, 0.75);
+    outline: 2px solid rgba(0, 255, 140, 0.8);
+    outline-offset: -2px;
+}
 
 .best-move {
-    box-shadow: inset 0 0 20px rgba(0, 255, 255, 0.9);
-    border: 2px solid cyan;
+    box-shadow:
+        inset 0 0 0 9999px rgba(0, 255, 255, 0.14),
+        inset 0 0 16px rgba(0, 255, 255, 0.85);
+    outline: 2px solid rgba(0, 255, 255, 0.9);
+    outline-offset: -2px;
 }
 
 /* ======================
@@ -107,58 +130,84 @@ body {
 ====================== */
 
 button {
-    background: gold;
+    display: inline-block;
+    width: min(38vw, 240px);
+    min-width: 150px;
+    padding: 14px 18px;
+    margin: 8px 8px 14px;
     border: none;
-
-    padding: 14px 22px;
-    margin: 10px;
-
-    font-size: 16px;
-    font-weight: bold;
-
-    border-radius: 10px;
-
+    border-radius: 14px;
+    background: #ffd400;
+    color: #1f3a8a;
+    font-size: clamp(14px, 3.6vw, 20px);
+    font-weight: 800;
     cursor: pointer;
-
-    transition: all 0.2s ease;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+    transition: transform 0.12s ease, filter 0.12s ease;
 }
 
 button:hover {
-    background: #ffd700;
-    transform: scale(1.05);
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+}
+
+button:active {
+    transform: translateY(0);
 }
 
 /* ======================
    PANELS
 ====================== */
 
-.panel {
-    background: #1c2f4f;
-
-    margin: 15px;
-    padding: 15px;
-
-    border-radius: 15px;
-
-    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+#status-panel {
+    width: min(92vw, 760px);
+    margin: 18px auto 0;
+    padding: 20px 18px 26px;
+    border-radius: 22px;
+    background: rgba(27, 42, 73, 0.96);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.26);
+    text-align: left;
 }
 
-/* ======================
-   STATUS TEXT
-====================== */
+#status-panel h2 {
+    margin: 18px 0 10px;
+    font-size: clamp(22px, 5vw, 32px);
+    line-height: 1.1;
+    color: #ffffff;
+}
+
+#status,
+#coach,
+#adaptiveCoach,
+#positionPlan,
+#history {
+    white-space: pre-line;
+    line-height: 1.45;
+    font-size: clamp(16px, 3.6vw, 20px);
+}
 
 #status {
-    font-size: 18px;
-    margin-top: 10px;
+    margin-top: 4px;
+}
+
+#history {
+    max-height: 240px;
+    overflow: auto;
+    padding-right: 6px;
+}
+
+#history br {
+    line-height: 1.2;
 }
 
 /* ======================
-   DROPDOWN
+   SMALL TUNES
 ====================== */
 
-select {
-    padding: 10px;
-    border-radius: 10px;
-    border: none;
-    font-size: 16px;
+* {
+    box-sizing: border-box;
+}
+
+::selection {
+    background: rgba(255, 212, 0, 0.35);
 }
