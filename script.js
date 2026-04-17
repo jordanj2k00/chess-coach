@@ -29,6 +29,89 @@ let playerProfile = {
 };
 
 // ======================
+// VOICE COACH
+// ======================
+
+let voiceEnabled = true;
+let voiceCache = [];
+let lastSpokenText = "";
+
+function refreshVoices() {
+    if (!("speechSynthesis" in window)) return;
+    voiceCache = speechSynthesis.getVoices() || [];
+}
+
+function initVoicePreference() {
+    const saved = localStorage.getItem("voiceEnabled");
+    if (saved !== null) {
+        try {
+            voiceEnabled = JSON.parse(saved);
+        } catch {
+            voiceEnabled = true;
+        }
+    }
+
+    const el = document.getElementById("voiceToggle");
+    if (el) el.checked = voiceEnabled;
+}
+
+function toggleVoice() {
+    const el = document.getElementById("voiceToggle");
+    voiceEnabled = !!(el && el.checked);
+    localStorage.setItem("voiceEnabled", JSON.stringify(voiceEnabled));
+
+    if (!voiceEnabled && "speechSynthesis" in window) {
+        speechSynthesis.cancel();
+    }
+}
+
+function pickNaturalVoice() {
+    const voices = voiceCache.length ? voiceCache : (speechSynthesis.getVoices() || []);
+
+    if (!voices.length) return null;
+
+    const preferred = voices.find(v =>
+        /natural|google|microsoft|samantha|victoria|aria|zira|alex/i.test(v.name)
+    );
+
+    if (preferred) return preferred;
+
+    const english = voices.find(v => /^en/i.test(v.lang));
+    if (english) return english;
+
+    return voices[0];
+}
+
+function speakCoach(text) {
+    if (!voiceEnabled || !("speechSynthesis" in window)) return;
+
+    const clean = String(text || "")
+        .replace(/\n+/g, ". ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    if (!clean || clean === lastSpokenText) return;
+
+    lastSpokenText = clean;
+
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.rate = 0.94;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    const voice = pickNaturalVoice();
+    if (voice) utterance.voice = voice;
+
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utterance);
+}
+
+if ("speechSynthesis" in window) {
+    refreshVoices();
+    window.speechSynthesis.onvoiceschanged = refreshVoices;
+}
+
+// ======================
 // REPERTOIRE TREE
 // ======================
 
@@ -46,7 +129,7 @@ const repertoireTree = {
                 {
                     name: "4...exd4 5.Nxd4",
                     moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "d4", "exd4", "Nxd4"],
-                    plan: "Recapture with the knight, keep pieces active, and use the open center."
+                    plan: "Recapture actively, keep pieces active, and use the open center."
                 },
                 {
                     name: "4...Bb4 Pin",
@@ -233,6 +316,57 @@ let trainingLine = null;
 let theoryLine = null;
 
 // ======================
+// MOVE EXPLANATIONS
+// ======================
+
+const moveExplanations = {
+    e4: "Take the center and open lines for your pieces.",
+    e5: "Challenge the center and free your pieces.",
+    Nf3: "Develop a knight and pressure the center.",
+    Nc3: "Support the center and stay flexible.",
+    d4: "Strike the center and open the position.",
+    d5: "Challenge the center and keep the position balanced.",
+    c3: "Support d4 and build a strong pawn chain.",
+    c4: "Fight for central space and diagonal control.",
+    exd4: "Open the center and simplify the pawn structure.",
+    Nxd4: "Recapture actively and keep pressure in the center.",
+    Bb5: "Pin the knight and pressure the center.",
+    Bc4: "Aim at f7 and develop with initiative.",
+    Bd3: "Develop toward the kingside and keep attacking chances alive.",
+    Bf4: "Develop naturally and prepare active piece play.",
+    f4: "Gain kingside space and start an attack.",
+    h4: "Expand on the kingside and pressure the setup.",
+    g3: "Prepare a fianchetto and control the long diagonal.",
+    Bg2: "Fianchetto the bishop and support the center from afar.",
+    Bg7: "Fianchetto the bishop and fight the center from distance.",
+    OO: "Keep the king safe and connect the rooks.",
+    "O-O": "Keep the king safe and connect the rooks.",
+    "O-O-O": "Castle long for opposite-side attacking chances.",
+    Qb6: "Pressure b2 and d4 while increasing central tension.",
+    Bb4: "Pin the knight and create pressure on the center.",
+    Bf5: "Develop the bishop outside the pawn chain and fight for active squares.",
+    Bc5: "Develop actively and aim at f2/f7.",
+    Nd5: "Retreat while keeping pressure on the center.",
+    Nf6: "Develop a piece and challenge White’s center.",
+    Nc6: "Develop naturally and support central play.",
+    e6: "Support the center and free the light-squared bishop.",
+    d6: "Support the center and keep the king flexible.",
+    c5: "Strike the center and gain queenside space.",
+    g6: "Prepare a fianchetto and control long diagonals.",
+    b6: "Prepare a queenside fianchetto and control dark squares.",
+    a6: "Kick the bishop and gain space on the queenside.",
+    h6: "Stop piece jumps and prepare counterplay.",
+    c6: "Support the center and prepare ...d5.",
+    Be7: "Prepare to castle and keep the position flexible.",
+    Nbd7: "Improve piece coordination and support central play."
+};
+
+function explainMove(moveSan) {
+    const clean = normalizeSan(moveSan);
+    return moveExplanations[clean] || "Keep developing with purpose and stay true to the plan.";
+}
+
+// ======================
 // POSITION PLANS
 // ======================
 
@@ -273,7 +407,8 @@ function saveProgress() {
         JSON.stringify({
             playerProfile,
             playerElo,
-            aiElo
+            aiElo,
+            voiceEnabled
         })
     );
 }
@@ -287,13 +422,20 @@ function loadProgress() {
         playerProfile = data.playerProfile || playerProfile;
         playerElo = Number.isFinite(data.playerElo) ? data.playerElo : 1200;
         aiElo = Number.isFinite(data.aiElo) ? data.aiElo : playerElo + 100;
+        if (typeof data.voiceEnabled === "boolean") {
+            voiceEnabled = data.voiceEnabled;
+        }
     } catch {
         // ignore malformed saved data
     }
 }
 
+function syncAiElo() {
+    aiElo = Math.max(800, Math.round(playerElo + 100));
+}
+
 // ======================
-// HELPERS
+// GENERAL HELPERS
 // ======================
 
 function coordsToSquare(r, c) {
@@ -301,7 +443,7 @@ function coordsToSquare(r, c) {
 }
 
 function getPieceImage(piece) {
-    return `https://chessboardjs.com/img/chesspieces/wikipedia/${piece.color}${piece.type.toUpperCase()}.png`;
+    return `https://images.chesscomfiles.com/chess-themes/pieces/neo/150/${piece.color}${piece.type}.png`;
 }
 
 function normalizeSan(san) {
@@ -336,11 +478,9 @@ function lessonUserColor(lesson) {
 
 function getCurrentUserColor() {
     const lesson = getActiveLesson();
-
     if (lesson) {
         return lessonUserColor(lesson);
     }
-
     return "w";
 }
 
@@ -379,43 +519,49 @@ function findBestRepertoireMatch(history) {
     return best;
 }
 
-function getAnalysisCoachText() {
-    const history = chess.history();
-    const evalScore = evaluateBoard().toFixed(2);
-    const bestText = bestMoveHighlight ? `Best: ${bestMoveHighlight.san}` : "";
-    const match = findBestRepertoireMatch(history);
+function speakCoach(text) {
+    if (!voiceEnabled || !("speechSynthesis" in window)) return;
 
-    if (!match) {
-        return [
-            "Opening: Unrecognized",
-            `Eval: ${evalScore}`,
-            bestText
-        ].filter(Boolean).join("\n");
-    }
+    const clean = String(text || "")
+        .replace(/\n+/g, ". ")
+        .replace(/\s+/g, " ")
+        .trim();
 
-    return [
-        `Opening: ${match.opening}`,
-        `Branch: ${match.branch}`,
-        `In book: ${match.matchedPlies}/${match.moves.length} plies`,
-        `Plan: ${match.plan}`,
-        `Eval: ${evalScore}`,
-        bestText
-    ].filter(Boolean).join("\n");
+    if (!clean || clean === lastSpokenText) return;
+
+    lastSpokenText = clean;
+
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.rate = 0.94;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    const voice = pickNaturalVoice();
+    if (voice) utterance.voice = voice;
+
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utterance);
 }
 
-function lessonCoachText(label, lesson, nextMove) {
-    const sideText = lesson.side === "white" ? "White" : "Black";
+function pickNaturalVoice() {
+    const voices = voiceCache.length ? voiceCache : (speechSynthesis.getVoices() || []);
 
-    return [
-        `${label}: ${lesson.opening} - ${lesson.branch}`,
-        `Side: ${sideText}`,
-        `Plan: ${lesson.plan}`,
-        nextMove ? `Next: ${nextMove}` : `${label} complete!`
-    ].join("\n");
+    if (!voices.length) return null;
+
+    const preferred = voices.find(v =>
+        /natural|google|microsoft|samantha|victoria|aria|zira|alex/i.test(v.name)
+    );
+
+    if (preferred) return preferred;
+
+    const english = voices.find(v => /^en/i.test(v.lang));
+    if (english) return english;
+
+    return voices[0];
 }
 
 // ======================
-// EVALUATION + SEARCH
+// EVAL + SEARCH
 // ======================
 
 function evaluateBoard() {
@@ -523,6 +669,8 @@ function findBestMove(depth = getSearchDepth()) {
 }
 
 function chooseAiMove() {
+    syncAiElo();
+
     const ranked = rankMoves(getSearchDepth());
     if (!ranked.length) return null;
 
@@ -539,11 +687,13 @@ function chooseAiMove() {
 // ======================
 
 function updateElo(result) {
+    syncAiElo();
+
     const expected =
         1 / (1 + Math.pow(10, (aiElo - playerElo) / 400));
 
     playerElo = Math.round(playerElo + K_FACTOR * (result - expected));
-    aiElo = Math.max(800, playerElo + 100);
+    syncAiElo();
 
     saveProgress();
 }
@@ -605,8 +755,20 @@ function updatePlayerProfile(moveResult) {
 }
 
 // ======================
-// LESSON START / AUTO-PLAY
+// LESSON / THEORY COACHING
 // ======================
+
+function lessonCoachText(label, lesson, nextMove) {
+    const sideText = lesson.side === "white" ? "White" : "Black";
+
+    return [
+        `${label}: ${lesson.opening} - ${lesson.branch}`,
+        `Side: ${sideText}`,
+        `Plan: ${lesson.plan}`,
+        nextMove ? `Next: ${nextMove}` : `${label} complete!`,
+        nextMove ? `Why: ${explainMove(nextMove)}` : "Why: Review the resulting position and the plan."
+    ].join("\n");
+}
 
 function autoPlayLessonPrelude(lesson, label) {
     if (!lesson) return;
@@ -628,16 +790,13 @@ function autoPlayLessonPrelude(lesson, label) {
     syncLastMoveFromHistory();
 
     const next = lesson.moves[chess.history().length];
+    const coachText = lessonCoachText(label, lesson, next || null);
 
-    document.getElementById("coach").innerText =
-        lessonCoachText(label, lesson, next || null);
+    document.getElementById("coach").innerText = coachText;
+    speakCoach(coachText);
 
     renderBoard();
 }
-
-// ======================
-// LESSON PROCESSING
-// ======================
 
 function processLessonMove(lesson, label, moveResult) {
     clearTimeout(lessonTimeoutId);
@@ -647,13 +806,16 @@ function processLessonMove(lesson, label, moveResult) {
     const expected = lesson.moves[history.length - 1];
 
     if (typeof expected === "undefined") {
-        document.getElementById("coach").innerText = `${label} complete!`;
+        const completeText = `${label} complete!`;
+        document.getElementById("coach").innerText = completeText;
+        speakCoach(completeText);
         renderBoard();
         return;
     }
 
     if (normalizeSan(moveResult.san) !== normalizeSan(expected)) {
         alert(`Wrong move! Expected: ${expected}`);
+
         chess.undo();
         syncLastMoveFromHistory();
         renderBoard();
@@ -661,8 +823,10 @@ function processLessonMove(lesson, label, moveResult) {
     }
 
     const nextSan = lesson.moves[history.length];
-    document.getElementById("coach").innerText =
-        lessonCoachText(label, lesson, nextSan || null);
+    const coachText = lessonCoachText(label, lesson, nextSan || null);
+
+    document.getElementById("coach").innerText = coachText;
+    speakCoach(coachText);
 
     if (nextSan) {
         lessonTimeoutId = setTimeout(() => {
@@ -678,14 +842,47 @@ function processLessonMove(lesson, label, moveResult) {
             const newHistory = chess.history();
             const upcoming = lesson.moves[newHistory.length];
 
-            document.getElementById("coach").innerText =
-                lessonCoachText(label, lesson, upcoming || null);
+            const followupText = lessonCoachText(label, lesson, upcoming || null);
+            document.getElementById("coach").innerText = followupText;
+            speakCoach(followupText);
 
+            lessonTimeoutId = null;
             saveProgress();
         }, 400);
     }
 
     renderBoard();
+}
+
+// ======================
+// ANALYSIS / OPENING IDENTIFICATION
+// ======================
+
+function getAnalysisCoachText() {
+    const history = chess.history();
+    const evalScore = evaluateBoard().toFixed(2);
+    const bestText = bestMoveHighlight
+        ? `Best: ${bestMoveHighlight.san} — ${explainMove(bestMoveHighlight.san)}`
+        : "";
+
+    const match = findBestRepertoireMatch(history);
+
+    if (!match) {
+        return [
+            "Opening: Unrecognized",
+            `Eval: ${evalScore}`,
+            bestText
+        ].filter(Boolean).join("\n");
+    }
+
+    return [
+        `Opening: ${match.opening}`,
+        `Branch: ${match.branch}`,
+        `In book: ${match.matchedPlies}/${match.moves.length} plies`,
+        `Plan: ${match.plan}`,
+        `Eval: ${evalScore}`,
+        bestText
+    ].filter(Boolean).join("\n");
 }
 
 // ======================
@@ -778,6 +975,10 @@ function renderBoard() {
 // ======================
 
 function handleClick(r, c) {
+    if ((currentMode === "training" || currentMode === "theory") && lessonTimeoutId) {
+        return;
+    }
+
     const sq = coordsToSquare(r, c);
 
     if (!selectedSquare) {
@@ -867,6 +1068,12 @@ function aiMove() {
 function showBestMove() {
     bestMoveHighlight = chess.game_over() ? null : findBestMove();
     renderBoard();
+
+    if (bestMoveHighlight) {
+        const text = `Best move: ${bestMoveHighlight.san}. ${explainMove(bestMoveHighlight.san)}`;
+        document.getElementById("coach").innerText = text;
+        speakCoach(text);
+    }
 }
 
 // ======================
@@ -876,13 +1083,26 @@ function showBestMove() {
 function updateUI() {
     const evalScore = evaluateBoard();
 
+    const modeLabel =
+        currentMode === "computer" ? "Computer" :
+        currentMode === "theory" ? "Theory" :
+        currentMode === "training" ? "Training" :
+        "Analysis";
+
     document.getElementById("status").innerText =
         (chess.turn() === "w" ? "White" : "Black") +
         " to Move | ELO: " + playerElo +
-        " | Eval: " + evalScore.toFixed(2);
+        " | Eval: " + evalScore.toFixed(2) +
+        " | Mode: " + modeLabel;
 
     document.getElementById("history").innerHTML =
         chess.history().join("<br>");
+
+    const percent = Math.max(0, Math.min(100, 50 + (evalScore * 5)));
+    const evalFill = document.getElementById("evalFill");
+    if (evalFill) {
+        evalFill.style.height = percent + "%";
+    }
 
     if (currentMode === "analysis") {
         document.getElementById("coach").innerText = getAnalysisCoachText();
@@ -933,20 +1153,20 @@ function changeMode() {
     clearTimeout(lessonTimeoutId);
     lessonTimeoutId = null;
 
-    trainingLine = null;
-    theoryLine = null;
-
-    resetGame();
+    gameResultRecorded = false;
 
     if (currentMode === "training") {
         trainingLine = pickRandomLesson();
-        autoPlayLessonPrelude(trainingLine, "Training");
+        theoryLine = null;
+    } else if (currentMode === "theory") {
+        theoryLine = pickRandomLesson();
+        trainingLine = null;
+    } else {
+        trainingLine = null;
+        theoryLine = null;
     }
 
-    if (currentMode === "theory") {
-        theoryLine = pickRandomLesson();
-        autoPlayLessonPrelude(theoryLine, "Theory");
-    }
+    resetGame();
 
     if (currentMode === "analysis") {
         document.getElementById("coach").innerText =
@@ -968,6 +1188,7 @@ function resetGame() {
     bestMoveHighlight = null;
     lessonMoveHighlight = null;
     gameResultRecorded = false;
+    lastSpokenText = "";
 
     if (currentMode === "training" && trainingLine) {
         autoPlayLessonPrelude(trainingLine, "Training");
@@ -987,4 +1208,11 @@ function resetGame() {
 // ======================
 
 loadProgress();
+syncAiElo();
+initVoicePreference();
+
+if (typeof speechSynthesis !== "undefined") {
+    refreshVoices();
+}
+
 renderBoard();
