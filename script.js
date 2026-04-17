@@ -9,18 +9,21 @@ let selectedSquare = null;
 let lastMove = null;
 
 // ======================
-// ELO SYSTEM
+// PLAYER PROFILE
 // ======================
 
-let playerElo = 1200;
-let aiElo = 1300;
-const K_FACTOR = 32;
+let playerProfile = {
+    earlyQueenMoves: 0,
+    earlyAttacks: 0,
+    pawnRushes: 0,
+    gamesPlayed: 0
+};
 
 // ======================
-// TRAINING MODE
+// OPENING THEORY
 // ======================
 
-const trainingLines = [
+const openingLines = [
     {
         name: "Four Knights Scotch",
         moves: ["e4","e5","Nf3","Nc6","Nc3","Nf6","d4"]
@@ -31,31 +34,46 @@ const trainingLines = [
     }
 ];
 
+// ======================
+// TRAINING MODE
+// ======================
+
+const trainingLines = openingLines;
+
 let trainingLine = null;
 let trainingIndex = 0;
 
 // ======================
-// OPENING THEORY DATABASE
+// POSITION PLANS
 // ======================
 
-const openingLines = [
-    {
-        name: "Four Knights Game",
-        moves: ["e4","e5","Nf3","Nc6","Nc3","Nf6"]
+const positionPlans = {
+
+    kingsideAttack: {
+        condition: () =>
+            chess.get("f4") || chess.get("g4") || chess.get("h4"),
+
+        advice:
+            "Kingside attack: Bring rook to f-file and attack."
     },
-    {
-        name: "Four Knights Scotch",
-        moves: ["e4","e5","Nf3","Nc6","Nc3","Nf6","d4"]
+
+    developedCenter: {
+        condition: () =>
+            chess.get("e4") && chess.get("d4"),
+
+        advice:
+            "Strong center: Develop and castle."
     },
-    {
-        name: "Alekhine Defense",
-        moves: ["e4","Nf6"]
-    },
-    {
-        name: "King's Indian Defense",
-        moves: ["d4","Nf6","c4","g6"]
+
+    openCenter: {
+        condition: () =>
+            !chess.get("d4") && !chess.get("e4"),
+
+        advice:
+            "Open center: Activate pieces."
     }
-];
+
+};
 
 // ======================
 // SAVE / LOAD
@@ -63,7 +81,7 @@ const openingLines = [
 
 function saveProgress(){
     const data = {
-        playerElo,
+        playerProfile,
         trainingIndex,
         trainingLine
     };
@@ -74,7 +92,7 @@ function loadProgress(){
     const saved = localStorage.getItem("chessCoachData");
     if(saved){
         const data = JSON.parse(saved);
-        playerElo = data.playerElo || 1200;
+        playerProfile = data.playerProfile || playerProfile;
         trainingIndex = data.trainingIndex || 0;
         trainingLine = data.trainingLine || null;
     }
@@ -107,18 +125,33 @@ function renderBoard(){
                 square.appendChild(img);
             }
 
+            // SELECTED
             if(selectedSquare && selectedSquare.row===r && selectedSquare.col===c){
                 square.classList.add("selected");
             }
 
+            // LAST MOVE
             if(lastMove){
                 const sq = coordsToSquare(r,c);
-                if(sq===lastMove.from || sq===lastMove.to){
+                if(sq === lastMove.from || sq === lastMove.to){
                     square.classList.add("last-move");
                 }
             }
 
+            // LEGAL MOVES
+            if(selectedSquare){
+                const moves = chess.moves({
+                    square: coordsToSquare(selectedSquare.row, selectedSquare.col),
+                    verbose:true
+                });
+
+                if(moves.some(m=>m.to===coordsToSquare(r,c))){
+                    square.classList.add("legal");
+                }
+            }
+
             square.onclick = () => handleClick(r,c);
+
             boardDiv.appendChild(square);
         }
     }
@@ -134,6 +167,7 @@ function handleClick(r,c){
 
     const sq = coordsToSquare(r,c);
 
+    // SELECT PIECE
     if(!selectedSquare){
         const piece = chess.get(sq);
         if(piece && piece.color==="w"){
@@ -142,6 +176,8 @@ function handleClick(r,c){
         }
         return;
     }
+
+    const beforeEval = evaluateBoard();
 
     const moveResult = chess.move({
         from: coordsToSquare(selectedSquare.row,selectedSquare.col),
@@ -157,6 +193,14 @@ function handleClick(r,c){
     }
 
     lastMove = moveResult;
+
+    const afterEval = evaluateBoard();
+
+    // BLUNDER DETECTION
+    if(afterEval < beforeEval - 20){
+        document.getElementById("coach").innerText =
+            "Blunder: You lost material!";
+    }
 
     // ======================
     // TRAINING MODE
@@ -175,52 +219,47 @@ function handleClick(r,c){
 
         trainingIndex++;
 
-        if(trainingIndex < trainingLine.moves.length){
-            const opponentMove = trainingLine.moves[trainingIndex];
-
-            setTimeout(()=>{
-                const move = chess.move(opponentMove);
-                lastMove = move;
-                renderBoard();
-            },400);
-
-            trainingIndex++;
-        }
-
-        if(trainingIndex < trainingLine.moves.length){
-            document.getElementById("coach").innerText =
-                "Play: " + trainingLine.moves[trainingIndex];
-        } else {
+        if(trainingIndex >= trainingLine.moves.length){
             document.getElementById("coach").innerText =
                 "Training complete!";
+        } else {
+            document.getElementById("coach").innerText =
+                "Next move: " + trainingLine.moves[trainingIndex];
         }
 
         saveProgress();
-        return;
     }
 
     // ======================
-    // THEORY MODE (NEW)
+    // THEORY MODE
     // ======================
 
     if(currentMode==="theory"){
         checkOpeningTheory();
     }
 
+    saveProgress();
+
     renderBoard();
 
-    if(currentMode==="computer"){
+    if(!chess.game_over() && currentMode==="computer"){
         setTimeout(aiMove,400);
     }
 }
 
 // ======================
-// THEORY CHECK FUNCTION
+// THEORY CHECK
 // ======================
 
 function checkOpeningTheory(){
 
     const history = chess.history();
+
+    if(history.length === 0){
+        document.getElementById("coach").innerText =
+            "Play your first move.";
+        return;
+    }
 
     for(let line of openingLines){
 
@@ -229,7 +268,9 @@ function checkOpeningTheory(){
         if(JSON.stringify(history) === JSON.stringify(partial)){
 
             document.getElementById("coach").innerText =
-                "Following theory: " + line.name;
+                "Following: " + line.name +
+                "\nNext: " + (line.moves[history.length] || "Done");
+
             return;
         }
     }
@@ -290,21 +331,62 @@ function evaluateBoard(){
 }
 
 // ======================
-// UI
+// UI UPDATE
 // ======================
 
 function updateUI(){
 
     document.getElementById("status").innerText =
-        (chess.turn()==="w" ? "White to Move" : "Black to Move")
-        + " | ELO: " + playerElo;
+        chess.turn()==="w" ? "White to Move" : "Black to Move";
 
     document.getElementById("history").innerHTML =
         chess.history().join("<br>");
+
+    adaptiveCoach();
+    detectPositionPlan();
 }
 
 // ======================
-// MODE
+// COACH
+// ======================
+
+function adaptiveCoach(){
+
+    let advice = "Balanced play.";
+
+    if(playerProfile.earlyQueenMoves > 3){
+        advice = "Too many early queen moves.";
+    }
+    else if(playerProfile.earlyAttacks > 5){
+        advice = "Slow down attacks.";
+    }
+    else if(playerProfile.pawnRushes > 10){
+        advice = "Too many pawn pushes.";
+    }
+
+    document.getElementById("adaptiveCoach").innerText = advice;
+}
+
+// ======================
+// POSITION PLAN
+// ======================
+
+function detectPositionPlan(){
+
+    for(let key in positionPlans){
+        if(positionPlans[key].condition()){
+            document.getElementById("positionPlan").innerText =
+                positionPlans[key].advice;
+            return;
+        }
+    }
+
+    document.getElementById("positionPlan").innerText =
+        "No structure detected.";
+}
+
+// ======================
+// MODE SWITCH
 // ======================
 
 function changeMode(){
@@ -319,13 +401,12 @@ function changeMode(){
         trainingIndex = 0;
 
         document.getElementById("coach").innerText =
-            "Training: " + trainingLine.name +
-            " | Play: " + trainingLine.moves[0];
+            "Training: " + trainingLine.name;
     }
 
     if(currentMode==="theory"){
         document.getElementById("coach").innerText =
-            "Opening theory mode active.";
+            "Theory mode active.";
     }
 }
 
