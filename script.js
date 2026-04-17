@@ -9,6 +9,14 @@ let selectedSquare = null;
 let lastMove = null;
 
 // ======================
+// ELO SYSTEM
+// ======================
+
+let playerElo = 1200;
+let aiElo = 1300;
+const K_FACTOR = 32;
+
+// ======================
 // PLAYER PROFILE
 // ======================
 
@@ -42,31 +50,24 @@ let trainingIndex = 0;
 // ======================
 
 const positionPlans = {
-
     kingsideAttack: {
         condition: () =>
             chess.get("f4") || chess.get("g4") || chess.get("h4"),
-
         advice:
             "Kingside attack detected: Bring rook to f-file and attack the king."
     },
-
     developedCenter: {
         condition: () =>
             chess.get("e4") && chess.get("d4"),
-
         advice:
             "Strong center: Develop pieces quickly and castle."
     },
-
     openCenter: {
         condition: () =>
             !chess.get("d4") && !chess.get("e4"),
-
         advice:
             "Open center: Activate pieces and look for tactics."
     }
-
 };
 
 // ======================
@@ -77,7 +78,8 @@ function saveProgress(){
     const data = {
         playerProfile,
         trainingIndex,
-        trainingLine
+        trainingLine,
+        playerElo
     };
     localStorage.setItem("chessCoachData", JSON.stringify(data));
 }
@@ -89,6 +91,7 @@ function loadProgress(){
         playerProfile = data.playerProfile || playerProfile;
         trainingIndex = data.trainingIndex || 0;
         trainingLine = data.trainingLine || null;
+        playerElo = data.playerElo || 1200;
     }
 }
 
@@ -119,12 +122,10 @@ function renderBoard(){
                 square.appendChild(img);
             }
 
-            // SELECTED
             if(selectedSquare && selectedSquare.row===r && selectedSquare.col===c){
                 square.classList.add("selected");
             }
 
-            // LAST MOVE
             if(lastMove){
                 const sq = coordsToSquare(r,c);
                 if(sq===lastMove.from || sq===lastMove.to){
@@ -132,7 +133,6 @@ function renderBoard(){
                 }
             }
 
-            // LEGAL MOVES
             if(selectedSquare){
                 const moves = chess.moves({
                     square: coordsToSquare(selectedSquare.row, selectedSquare.col),
@@ -145,7 +145,6 @@ function renderBoard(){
             }
 
             square.onclick = () => handleClick(r,c);
-
             boardDiv.appendChild(square);
         }
     }
@@ -161,7 +160,6 @@ function handleClick(r,c){
 
     const sq = coordsToSquare(r,c);
 
-    // SELECT PIECE
     if(!selectedSquare){
         const piece = chess.get(sq);
         if(piece && piece.color==="w"){
@@ -190,14 +188,13 @@ function handleClick(r,c){
 
     const afterEval = evaluateBoard();
 
-    // BLUNDER DETECTION
     if(afterEval < beforeEval - 2){
         document.getElementById("coach").innerText =
             "Blunder: You lost material!";
     }
 
     // ======================
-    // TRAINING MODE (FIXED)
+    // TRAINING MODE
     // ======================
 
     if(currentMode==="training" && trainingLine){
@@ -213,7 +210,6 @@ function handleClick(r,c){
 
         trainingIndex++;
 
-        // Auto-play opponent move
         if(trainingIndex < trainingLine.moves.length){
 
             const opponentMove = trainingLine.moves[trainingIndex];
@@ -227,32 +223,55 @@ function handleClick(r,c){
             trainingIndex++;
         }
 
-        // Show next move
         if(trainingIndex < trainingLine.moves.length){
             document.getElementById("coach").innerText =
                 "Play: " + trainingLine.moves[trainingIndex];
         }
 
-        // Finished
         if(trainingIndex >= trainingLine.moves.length){
             document.getElementById("coach").innerText =
                 "Training complete!";
         }
 
         saveProgress();
+        return;
+    }
+
+    // ======================
+    // GAME RESULT CHECK
+    // ======================
+
+    if(chess.game_over()){
+
+        if(chess.in_checkmate()){
+
+            if(chess.turn() === "w"){
+                updateElo(0);
+                alert("You lost! ELO: " + playerElo);
+            } else {
+                updateElo(1);
+                alert("You won! ELO: " + playerElo);
+            }
+
+        } else {
+            updateElo(0.5);
+            alert("Draw. ELO: " + playerElo);
+        }
+
+        return;
     }
 
     saveProgress();
 
     renderBoard();
 
-    if(!chess.game_over() && currentMode==="computer"){
+    if(currentMode==="computer"){
         setTimeout(aiMove,400);
     }
 }
 
 // ======================
-// AI
+// AI WITH ELO
 // ======================
 
 function aiMove(){
@@ -261,16 +280,25 @@ function aiMove(){
 
     let bestMove = null;
     let bestValue = -9999;
+    let evaluations = [];
 
     for(let move of moves){
         chess.move(move);
         let value = evaluateBoard();
         chess.undo();
 
+        evaluations.push({move,value});
+
         if(value > bestValue){
             bestValue = value;
             bestMove = move;
         }
+    }
+
+    let difficulty = Math.min(1, aiElo / 2000);
+
+    if(Math.random() > difficulty){
+        bestMove = evaluations[Math.floor(Math.random()*evaluations.length)].move;
     }
 
     const move = chess.move(bestMove);
@@ -280,7 +308,24 @@ function aiMove(){
 }
 
 // ======================
-// SIMPLE EVALUATION
+// ELO UPDATE
+// ======================
+
+function updateElo(result){
+
+    const expected =
+        1 / (1 + Math.pow(10, (aiElo - playerElo) / 400));
+
+    playerElo =
+        Math.round(playerElo + K_FACTOR * (result - expected));
+
+    aiElo = playerElo + 100;
+
+    saveProgress();
+}
+
+// ======================
+// EVALUATION
 // ======================
 
 function evaluateBoard(){
@@ -303,13 +348,14 @@ function evaluateBoard(){
 }
 
 // ======================
-// UI + COACH
+// UI
 // ======================
 
 function updateUI(){
 
     document.getElementById("status").innerText =
-        chess.turn()==="w" ? "White to Move" : "Black to Move";
+        (chess.turn()==="w" ? "White to Move" : "Black to Move")
+        + " | ELO: " + playerElo;
 
     document.getElementById("history").innerHTML =
         chess.history().join("<br>");
@@ -319,7 +365,7 @@ function updateUI(){
 }
 
 // ======================
-// ADAPTIVE COACH
+// COACH
 // ======================
 
 function adaptiveCoach(){
@@ -327,21 +373,17 @@ function adaptiveCoach(){
     let advice = "Balanced play detected.";
 
     if(playerProfile.earlyQueenMoves > 3){
-        advice = "You move your queen early. Develop first.";
+        advice = "You move your queen early.";
     }
     else if(playerProfile.earlyAttacks > 5){
-        advice = "You attack too early. Build position first.";
+        advice = "You attack too early.";
     }
     else if(playerProfile.pawnRushes > 10){
-        advice = "Too many pawn pushes. Watch structure.";
+        advice = "Too many pawn pushes.";
     }
 
     document.getElementById("adaptiveCoach").innerText = advice;
 }
-
-// ======================
-// POSITION PLAN
-// ======================
 
 function detectPositionPlan(){
 
@@ -354,11 +396,11 @@ function detectPositionPlan(){
     }
 
     document.getElementById("positionPlan").innerText =
-        "No special structure recognized.";
+        "No structure recognized.";
 }
 
 // ======================
-// MODE SWITCH
+// MODE
 // ======================
 
 function changeMode(){
