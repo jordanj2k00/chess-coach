@@ -11,16 +11,28 @@
 
     <h1>♟ Liquid Grave Chess Coach</h1>
 
-    <select id="gameMode" onchange="changeMode()">
-        <option value="computer" selected>Regular Game vs Computer</option>
-        <option value="theory">Opening Theory Practice</option>
-        <option value="training">Training Mode</option>
-        <option value="analysis">Analysis Board</option>
-    </select>
+    <div class="top-controls">
+        <select id="gameMode" onchange="changeMode()">
+            <option value="computer" selected>Regular Game vs Computer</option>
+            <option value="theory">Opening Theory Practice</option>
+            <option value="training">Training Mode</option>
+            <option value="analysis">Analysis Board</option>
+        </select>
 
-    <div id="board"></div>
+        <label class="voice-control">
+            <input type="checkbox" id="voiceToggle" checked onchange="toggleVoice()" />
+            Voice coach
+        </label>
+    </div>
 
-    <div>
+    <div id="boardShell">
+        <div id="board"></div>
+        <div id="evalBar" aria-label="Evaluation bar">
+            <div id="evalFill"></div>
+        </div>
+    </div>
+
+    <div class="button-row">
         <button onclick="resetGame()">Reset Game</button>
         <button onclick="showBestMove()">Show Best Move</button>
     </div>
