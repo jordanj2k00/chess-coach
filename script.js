@@ -278,8 +278,21 @@ function resetGame(){
 }
 
 function changeMode(){
-    currentMode=document.getElementById("gameMode").value;
+    currentMode = document.getElementById("gameMode").value;
+
     resetGame();
+
+    if(currentMode==="training"){
+
+        trainingLine = trainingLines[
+            Math.floor(Math.random()*trainingLines.length)
+        ];
+
+        trainingIndex = 0;
+
+        document.getElementById("coach").innerText =
+            "Training: " + trainingLine.name;
+    }
 }
 
 renderBoard();
