@@ -11,46 +11,26 @@ let playerProfile = {
     pawnRushes: 0
 };
 
-/* POSITION PLANS */
-const positionPlans = {
-
-    advanceFrench: {
-        condition: () =>
-            chess.get("e5") && chess.get("d4"),
-        advice:
-            "Advance French: Space advantage. Attack kingside and control center."
-    },
-
-    kingsideAttack: {
-        condition: () =>
-            chess.get("f4") || chess.get("g4") || chess.get("h4"),
-        advice:
-            "Kingside attack: Bring rook to f-file and attack the king."
-    },
-
-    developedCenter: {
-        condition: () =>
-            chess.get("e4") && chess.get("d4"),
-        advice:
-            "Strong center: Develop pieces quickly and castle."
-    },
-
-    openCenter: {
-        condition: () =>
-            !chess.get("d4") && !chess.get("e4"),
-        advice:
-            "Open center: Focus on development and tactics."
-    }
-
+/* OPENING DATABASE */
+const openingNames = {
+    "e4 e5 Nf3 Nc6 Nc3 Nf6": "Four Knights Game",
+    "e4 e5 Nf3 Nc6 Nc3 Nf6 d4": "Four Knights Scotch",
+    "e4 e6 d4 d5 e5": "French Defense: Advance",
+    "d4 Nf6 c4 g6": "King's Indian Defense",
+    "e4 Nf6": "Alekhine Defense"
 };
 
-/* OPENING THEORY */
-const openingLines = [
-    ["e4","e5","Nf3","Nc6","Nc3","Nf6","d4"],
-    ["e4","e5","Nf3","Nc6","Nc3","Nf6","Nxe5"],
-    ["d4","Nf6","c4","g6"],
-    ["e4","Nf6"]
-];
+/* POSITION PLANS */
+const positionPlans = {
+    center: {
+        condition: () => chess.get("e4") && chess.get("d4"),
+        advice: "Strong center: Develop pieces and attack."
+    },
+    kingside: {
+        condition: () => chess.get("f4") || chess.get("g4"),
+        advice: "Kingside attack forming. Bring rook to f-file."
+    }
+};
 
 /* PIECE IMAGES */
 const pieceImages = {
@@ -69,80 +49,55 @@ const pieceImages = {
     K:"https://images.chesscomfiles.com/chess-themes/pieces/neo/150/wk.png"
 };
 
-/* RENDER BOARD */
+/* RENDER */
 function renderBoard(){
-
     const boardDiv = document.getElementById("board");
     boardDiv.innerHTML = "";
 
     const board = chess.board();
 
-    for(let row=0; row<8; row++){
-        for(let col=0; col<8; col++){
+    for(let r=0;r<8;r++){
+        for(let c=0;c<8;c++){
 
             const square = document.createElement("div");
+            square.className = "square " + ((r+c)%2===0?"light":"dark");
 
-            square.classList.add("square");
-            square.classList.add((row+col)%2===0 ? "light" : "dark");
-
-            const piece = board[row][col];
+            const piece = board[r][c];
 
             if(piece){
                 const img = document.createElement("img");
-
                 img.src = pieceImages[
-                    piece.color === "w"
+                    piece.color==="w"
                     ? piece.type.toUpperCase()
                     : piece.type
                 ];
-
                 img.classList.add("piece-img");
                 square.appendChild(img);
             }
 
-            /* SELECTED */
-            if(
-                selectedSquare &&
-                selectedSquare.row === row &&
-                selectedSquare.col === col
-            ){
+            if(selectedSquare && selectedSquare.row===r && selectedSquare.col===c){
                 square.classList.add("selected");
             }
 
-            /* LEGAL MOVES */
             if(selectedSquare){
-
                 const moves = chess.moves({
-                    square: coordsToSquare(
-                        selectedSquare.row,
-                        selectedSquare.col
-                    ),
-                    verbose: true
+                    square: coordsToSquare(selectedSquare.row,selectedSquare.col),
+                    verbose:true
                 });
 
-                if(
-                    moves.some(
-                        move => move.to === coordsToSquare(row,col)
-                    )
-                ){
+                if(moves.some(m=>m.to===coordsToSquare(r,c))){
                     square.classList.add("legal");
                 }
             }
 
-            /* LAST MOVE */
-            const squareName = coordsToSquare(row,col);
+            const name = coordsToSquare(r,c);
 
             if(lastMove){
-                if(squareName === lastMove.from){
-                    square.classList.add("last-from");
-                }
-                if(squareName === lastMove.to){
-                    square.classList.add("last-to");
-                }
+                if(name===lastMove.from) square.classList.add("last-from");
+                if(name===lastMove.to) square.classList.add("last-to");
             }
 
-            square.onclick = () => handleClick(row,col);
-
+            square.onclick = ()=>handleClick(r,c);
             boardDiv.appendChild(square);
         }
     }
@@ -150,80 +105,66 @@ function renderBoard(){
     updateUI();
 }
 
-/* HANDLE CLICK */
-function handleClick(row,col){
+/* CLICK */
+function handleClick(r,c){
 
-    const clicked = coordsToSquare(row,col);
+    const sq = coordsToSquare(r,c);
 
     if(!selectedSquare){
-
-        const piece = chess.get(clicked);
-
-        if(piece && piece.color === "w"){
-            selectedSquare = {row,col};
+        const piece = chess.get(sq);
+        if(piece && piece.color==="w"){
+            selectedSquare={row:r,col:c};
             renderBoard();
         }
-
         return;
     }
 
+    const beforeEval = evaluateBoard();
+
     const move = chess.move({
-        from: coordsToSquare(selectedSquare.row, selectedSquare.col),
-        to: clicked,
-        promotion: "q"
+        from: coordsToSquare(selectedSquare.row,selectedSquare.col),
+        to: sq,
+        promotion:"q"
     });
 
-    if(move){
-
-        lastMove = move;
-
-        if(move.piece === "q" && chess.history().length < 10){
-            playerProfile.earlyQueenMoves++;
-        }
-
-        if(move.san.includes("+") && chess.history().length < 12){
-            playerProfile.earlyAttacks++;
-        }
-
-        if(move.piece === "p"){
-            playerProfile.pawnRushes++;
-        }
-    }
-
-    selectedSquare = null;
+    selectedSquare=null;
 
     if(!move){
         renderBoard();
         return;
     }
 
-    renderBoard();
-    coachPlayer();
+    lastMove = move;
 
-    if(!chess.game_over() && currentMode === "computer"){
-        setTimeout(aiMove, 400);
+    const afterEval = evaluateBoard();
+
+    if(afterEval < beforeEval - 20){
+        document.getElementById("coach").innerText =
+            "Blunder: You lost material!";
+    }
+
+    renderBoard();
+
+    if(!chess.game_over()){
+        setTimeout(aiMove,400);
     }
 }
 
-/* AI MOVE (SMARTER) */
+/* AI */
 function aiMove(){
+    const moves = chess.moves({verbose:true});
 
-    const moves = chess.moves({ verbose: true });
+    let bestMove=null;
+    let bestValue=-9999;
 
-    let bestMove = null;
-    let bestValue = -9999;
-
-    for(let move of moves){
-
-        chess.move(move);
-
-        let value = evaluateBoard();
-
+    for(let m of moves){
+        chess.move(m);
+        let val = evaluateBoard();
         chess.undo();
 
-        if(value > bestValue){
-            bestValue = value;
-            bestMove = move;
+        if(val>bestValue){
+            bestValue=val;
+            bestMove=m;
         }
     }
 
@@ -235,137 +176,94 @@ function aiMove(){
     renderBoard();
 }
 
-/* BOARD EVALUATION */
+/* EVAL */
 function evaluateBoard(){
-
-    let total = 0;
-
+    let total=0;
     const board = chess.board();
 
     for(let row of board){
-        for(let piece of row){
-
-            if(piece){
-                let value = getPieceValue(piece);
-                total += piece.color === "w" ? value : -value;
+        for(let p of row){
+            if(p){
+                let val = getPieceValue(p);
+                total += p.color==="w"?val:-val;
             }
         }
     }
-
     return total;
 }
 
-/* PIECE VALUES */
-function getPieceValue(piece){
-
-    const values = {
-        p:10,
-        n:30,
-        b:30,
-        r:50,
-        q:90,
-        k:900
-    };
-
-    return values[piece.type];
+function getPieceValue(p){
+    return {p:10,n:30,b:30,r:50,q:90,k:900}[p.type];
 }
 
-/* OPENING COACH */
-function coachPlayer(){
+/* BEST MOVE BUTTON */
+function showBestMove(){
+    const moves = chess.moves({verbose:true});
 
-    const history = chess.history();
+    let bestMove=null;
+    let bestValue=-9999;
 
-    for(let line of openingLines){
+    for(let m of moves){
+        chess.move(m);
+        let val = evaluateBoard();
+        chess.undo();
 
-        let partial = line.slice(0, history.length);
-
-        if(JSON.stringify(history) === JSON.stringify(partial)){
-
-            document.getElementById("coach").innerText =
-                "Excellent. You are following theory.";
-
-            return;
+        if(val>bestValue){
+            bestValue=val;
+            bestMove=m;
         }
     }
 
-    document.getElementById("coach").innerText =
-        "You have deviated from your opening prep.";
+    if(bestMove){
+        document.getElementById("coach").innerText =
+            "Best move: " + bestMove.from + " → " + bestMove.to;
+    }
 }
 
-/* ADAPTIVE COACH */
-function adaptiveCoach(){
+/* OPENING NAME */
+function detectOpening(){
+    const history = chess.history().join(" ");
 
-    let advice = "Balanced play detected. Keep developing.";
-
-    if(playerProfile.earlyQueenMoves > 3){
-        advice = "Stop moving your queen early. Develop pieces first.";
-    }
-    else if(playerProfile.earlyAttacks > 5){
-        advice = "You attack too early. Build position first.";
-    }
-    else if(playerProfile.pawnRushes > 10){
-        advice = "Too many pawn pushes. Watch your structure.";
-    }
-
-    document.getElementById("adaptiveCoach").innerText = advice;
-}
-
-/* POSITION PLAN */
-function detectPositionPlan(){
-
-    for(let key in positionPlans){
-
-        if(positionPlans[key].condition()){
-
-            document.getElementById("positionPlan").innerText =
-                positionPlans[key].advice;
-
-            return;
+    for(let line in openingNames){
+        if(history.startsWith(line)){
+            return openingNames[line];
         }
     }
 
-    document.getElementById("positionPlan").innerText =
-        "No clear plan detected.";
+    return null;
 }
 
 /* UPDATE UI */
 function updateUI(){
 
     document.getElementById("status").innerText =
-        chess.turn() === "w"
-        ? "White to Move"
-        : "Black to Move";
+        chess.turn()==="w"?"White to Move":"Black to Move";
 
     document.getElementById("history").innerHTML =
         chess.history().join("<br>");
 
-    adaptiveCoach();
-    detectPositionPlan();
+    const opening = detectOpening();
+    if(opening){
+        document.getElementById("coach").innerText =
+            "Opening: " + opening;
+    }
 }
 
 /* HELPERS */
-function coordsToSquare(row,col){
-    return "abcdefgh"[col] + (8-row);
+function coordsToSquare(r,c){
+    return "abcdefgh"[c]+(8-r);
 }
 
-/* RESET */
 function resetGame(){
-
     chess.reset();
-    selectedSquare = null;
-    lastMove = null;
-
-    document.getElementById("coach").innerText =
-        "Ready for battle.";
-
+    lastMove=null;
+    selectedSquare=null;
     renderBoard();
 }
 
-/* MODE CHANGE */
 function changeMode(){
-    currentMode = document.getElementById("gameMode").value;
+    currentMode=document.getElementById("gameMode").value;
     resetGame();
 }
 
-/* INIT */
 renderBoard();
