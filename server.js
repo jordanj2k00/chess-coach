@@ -4,7 +4,7 @@ const fetch = require("node-fetch");
 const app = express();
 app.use(express.json());
 
-const OPENAI_API_KEY = "PASTE_YOUR_API_KEY_HERE";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 app.post("/speak", async (req, res) => {
 
