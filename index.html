@@ -1,35 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Liquid Grave Chess Coach</title>
-
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
 </head>
 <body>
 
     <h1>♟ Liquid Grave Chess Coach</h1>
 
-    <div class="menu-bar">
-
-        <select id="gameMode" onchange="changeMode()">
-            <option value="computer">Regular Game vs Computer</option>
-            <option value="theory">Opening Theory Practice</option>
-            <option value="analysis">Analysis Board</option>
-            <option value="training">Training Mode</option>
-        </select>
-
-    </div>
+    <select id="gameMode" onchange="changeMode()">
+        <option value="computer" selected>Regular Game vs Computer</option>
+        <option value="theory">Opening Theory Practice</option>
+        <option value="training">Training Mode</option>
+        <option value="analysis">Analysis Board</option>
+    </select>
 
     <div id="board"></div>
 
-    <button onclick="resetGame()">Reset Game</button>
-    <button onclick="showBestMove()">Show Best Move</button>
+    <div>
+        <button onclick="resetGame()">Reset Game</button>
+        <button onclick="showBestMove()">Show Best Move</button>
+    </div>
 
     <div id="status-panel">
-
         <h2>Status</h2>
         <div id="status">White to Move</div>
 
@@ -38,19 +34,14 @@
 
         <h2>Move History</h2>
         <div id="history"></div>
+
         <h2>Adaptive Coach</h2>
-<div id="adaptiveCoach">
-    Learning your tendencies...
-</div>
+        <div id="adaptiveCoach">Learning your tendencies...</div>
 
-<h2>Position Plan</h2>
-<div id="positionPlan">
-    Waiting for position...
-</div>
-
+        <h2>Position Plan</h2>
+        <div id="positionPlan">Waiting for position...</div>
     </div>
 
     <script src="script.js"></script>
-
 </body>
 </html>
