@@ -1,3 +1,17 @@
+const trainingLines = [
+    {
+        name: "Four Knights Scotch",
+        moves: ["e4","e5","Nf3","Nc6","Nc3","Nf6","d4"]
+    },
+    {
+        name: "French Advance",
+        moves: ["e4","e6","d4","d5","e5"]
+    },
+    {
+        name: "King's Indian Defense",
+        moves: ["d4","Nf6","c4","g6"]
+    }
+];
 let currentMode = "computer";
 const chess = new Chess();
 
