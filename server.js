@@ -1,5 +1,5 @@
-import express from "express";
-import fetch from "node-fetch";
+const express = require("express");
+const fetch = require("node-fetch");
 
 const app = express();
 app.use(express.json());
@@ -7,32 +7,26 @@ app.use(express.json());
 const OPENAI_API_KEY = "PASTE_YOUR_API_KEY_HERE";
 
 app.post("/speak", async (req, res) => {
-    const { text } = req.body;
 
-    try {
-        const response = await fetch("https://api.openai.com/v1/audio/speech", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${OPENAI_API_KEY}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                model: "gpt-4o-mini-tts",
-                voice: "alloy",
-                input: text
-            })
-        });
+    const text = req.body.text;
 
-        const buffer = await response.arrayBuffer();
-        const audio = Buffer.from(buffer);
+    const response = await fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${OPENAI_API_KEY}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            model: "gpt-4o-mini-tts",
+            voice: "alloy",
+            input: text
+        })
+    });
 
-        res.setHeader("Content-Type", "audio/mpeg");
-        res.send(audio);
+    const audio = await response.arrayBuffer();
 
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Voice error");
-    }
+    res.set({ "Content-Type": "audio/mpeg" });
+    res.send(Buffer.from(audio));
 });
 
 app.listen(3000, () => {
