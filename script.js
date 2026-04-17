@@ -7,6 +7,7 @@ const chess = new Chess();
 
 let selectedSquare = null;
 let lastMove = null;
+let bestMoveHighlight = null;
 
 // ======================
 // PLAYER + ELO
@@ -102,12 +103,12 @@ function renderBoard(){
                 square.appendChild(img);
             }
 
-            // SELECTED
+            // Selected
             if(selectedSquare && selectedSquare.row===r && selectedSquare.col===c){
                 square.classList.add("selected");
             }
 
-            // LAST MOVE
+            // Last move
             if(lastMove){
                 const sq = coordsToSquare(r,c);
                 if(sq===lastMove.from || sq===lastMove.to){
@@ -115,7 +116,15 @@ function renderBoard(){
                 }
             }
 
-            // LEGAL MOVES
+            // Best move highlight
+            if(bestMoveHighlight){
+                const sq = coordsToSquare(r,c);
+                if(sq===bestMoveHighlight.from || sq===bestMoveHighlight.to){
+                    square.classList.add("best-move");
+                }
+            }
+
+            // Legal moves
             if(selectedSquare){
                 const moves = chess.moves({
                     square: coordsToSquare(selectedSquare.row,selectedSquare.col),
@@ -146,10 +155,12 @@ function handleClick(r,c){
 
     if(!selectedSquare){
         const piece = chess.get(sq);
-        if(piece && piece.color==="w"){
+
+        if(piece && (currentMode==="analysis" || piece.color==="w")){
             selectedSquare = {row:r,col:c};
             renderBoard();
         }
+
         return;
     }
 
@@ -162,6 +173,7 @@ function handleClick(r,c){
     });
 
     selectedSquare = null;
+    bestMoveHighlight = null;
 
     if(!moveResult){
         renderBoard();
@@ -177,12 +189,8 @@ function handleClick(r,c){
             "Blunder: You lost material!";
     }
 
-    // ======================
     // TRAINING MODE
-    // ======================
-
     if(currentMode==="training" && trainingLine){
-
         const expected = trainingLine.moves[trainingIndex];
 
         if(moveResult.san !== expected){
@@ -199,10 +207,7 @@ function handleClick(r,c){
         }
     }
 
-    // ======================
-    // THEORY MODE (FIXED)
-    // ======================
-
+    // THEORY MODE
     if(currentMode==="theory" && theoryLine){
 
         const expectedMove = theoryLine.moves[theoryIndex];
@@ -240,9 +245,6 @@ function handleClick(r,c){
 
             return;
         }
-
-        document.getElementById("coach").innerText =
-            "🔥 Theory complete!";
     }
 
     saveProgress();
@@ -282,6 +284,32 @@ function aiMove(){
 }
 
 // ======================
+// BEST MOVE
+// ======================
+
+function showBestMove(){
+
+    const moves = chess.moves({ verbose:true });
+
+    let bestMove = null;
+    let bestValue = -9999;
+
+    for(let move of moves){
+        chess.move(move);
+        let value = evaluateBoard();
+        chess.undo();
+
+        if(value > bestValue){
+            bestValue = value;
+            bestMove = move;
+        }
+    }
+
+    bestMoveHighlight = bestMove;
+    renderBoard();
+}
+
+// ======================
 // EVALUATION
 // ======================
 
@@ -310,9 +338,12 @@ function evaluateBoard(){
 
 function updateUI(){
 
+    const evalScore = evaluateBoard();
+
     document.getElementById("status").innerText =
         (chess.turn()==="w" ? "White" : "Black") +
-        " to Move | ELO: " + playerElo;
+        " to Move | ELO: " + playerElo +
+        " | Eval: " + evalScore.toFixed(2);
 
     document.getElementById("history").innerHTML =
         chess.history().join("<br>");
@@ -378,6 +409,7 @@ function resetGame(){
     chess.reset();
     lastMove = null;
     selectedSquare = null;
+    bestMoveHighlight = null;
     renderBoard();
 }
 
