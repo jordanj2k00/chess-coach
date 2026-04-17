@@ -16,7 +16,7 @@ h1 {
 }
 
 .top-controls {
-    width: min(94vw, 700px);
+    width: min(94vw, 760px);
     margin: 0 auto 12px;
     display: flex;
     gap: 12px;
@@ -37,20 +37,27 @@ select {
     outline: none;
 }
 
-.voice-control {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 11px 14px;
+button {
+    display: inline-block;
+    padding: 12px 18px;
+    border: none;
     border-radius: 14px;
-    background: rgba(255, 255, 255, 0.08);
-    font-size: 16px;
-    font-weight: 700;
-    backdrop-filter: blur(6px);
+    background: #ffd400;
+    color: #1f3a8a;
+    font-size: clamp(14px, 3.6vw, 18px);
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+    transition: transform 0.12s ease, filter 0.12s ease;
 }
 
-.voice-control input {
-    transform: scale(1.1);
+button:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+}
+
+button:active {
+    transform: translateY(0);
 }
 
 #boardShell {
@@ -158,31 +165,6 @@ select {
     flex-wrap: wrap;
     width: min(94vw, 650px);
     margin: 0 auto 8px;
-}
-
-button {
-    display: inline-block;
-    width: min(38vw, 240px);
-    min-width: 150px;
-    padding: 14px 18px;
-    border: none;
-    border-radius: 14px;
-    background: #ffd400;
-    color: #1f3a8a;
-    font-size: clamp(14px, 3.6vw, 20px);
-    font-weight: 800;
-    cursor: pointer;
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
-    transition: transform 0.12s ease, filter 0.12s ease;
-}
-
-button:hover {
-    transform: translateY(-1px);
-    filter: brightness(1.04);
-}
-
-button:active {
-    transform: translateY(0);
 }
 
 #status-panel {
