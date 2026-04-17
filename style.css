@@ -39,9 +39,11 @@ body {
 
 /* PIECES */
 .piece-img {
-    width: 85%;
-    height: 85%;
-    pointer-events: none;
+    width: 80%;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    margin: auto;
 }
 
 /* SELECTED */
