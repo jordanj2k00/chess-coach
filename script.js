@@ -1,70 +1,101 @@
-let currentMode = "computer";
+// ======================
+// GAME SETUP
+// ======================
 
+let currentMode = "computer";
 const chess = new Chess();
 
 let selectedSquare = null;
 let lastMove = null;
 
-// TRAINING STATE
-let trainingLine = null;
-let trainingIndex = 0;
+// ======================
+// PLAYER PROFILE
+// ======================
 
 let playerProfile = {
     earlyQueenMoves: 0,
     earlyAttacks: 0,
-    pawnRushes: 0
+    pawnRushes: 0,
+    gamesPlayed: 0
 };
 
-/* TRAINING LINES */
+// ======================
+// TRAINING MODE
+// ======================
+
 const trainingLines = [
     {
         name: "Four Knights Scotch",
         moves: ["e4","e5","Nf3","Nc6","Nc3","Nf6","d4"]
     },
     {
-        name: "French Advance",
-        moves: ["e4","e6","d4","d5","e5"]
-    },
-    {
-        name: "King's Indian Defense",
-        moves: ["d4","Nf6","c4","g6"]
+        name: "Alekhine Defense",
+        moves: ["e4","Nf6","e5","Nd5","d4"]
     }
 ];
 
-/* POSITION PLANS */
+let trainingLine = null;
+let trainingIndex = 0;
+
+// ======================
+// POSITION PLANS
+// ======================
+
 const positionPlans = {
-    advanceFrench: {
-        condition: () => chess.get("e5") && chess.get("d4"),
-        advice: "Advance French: Space advantage. Attack kingside."
-    },
+
     kingsideAttack: {
-        condition: () => chess.get("f4") || chess.get("h4"),
-        advice: "Kingside attack: Bring rook, open lines."
+        condition: () =>
+            chess.get("f4") || chess.get("g4") || chess.get("h4"),
+
+        advice:
+            "Kingside attack detected: Bring rook to f-file and attack the king."
     },
+
+    developedCenter: {
+        condition: () =>
+            chess.get("e4") && chess.get("d4"),
+
+        advice:
+            "Strong center: Develop pieces quickly and castle."
+    },
+
     openCenter: {
-        condition: () => !chess.get("d4") && !chess.get("e4"),
-        advice: "Open center: Develop pieces quickly."
+        condition: () =>
+            !chess.get("d4") && !chess.get("e4"),
+
+        advice:
+            "Open center: Activate pieces and look for tactics."
     }
+
 };
 
-/* PIECES */
-const pieceImages = {
-    p: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/bp.png",
-    r: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/br.png",
-    n: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/bn.png",
-    b: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/bb.png",
-    q: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/bq.png",
-    k: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/bk.png",
+// ======================
+// SAVE / LOAD
+// ======================
 
-    P: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/wp.png",
-    R: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/wr.png",
-    N: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/wn.png",
-    B: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/wb.png",
-    Q: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/wq.png",
-    K: "https://images.chesscomfiles.com/chess-themes/pieces/neo/150/wk.png"
-};
+function saveProgress(){
+    const data = {
+        playerProfile,
+        trainingIndex,
+        trainingLine
+    };
+    localStorage.setItem("chessCoachData", JSON.stringify(data));
+}
 
-/* BOARD RENDER */
+function loadProgress(){
+    const saved = localStorage.getItem("chessCoachData");
+    if(saved){
+        const data = JSON.parse(saved);
+        playerProfile = data.playerProfile || playerProfile;
+        trainingIndex = data.trainingIndex || 0;
+        trainingLine = data.trainingLine || null;
+    }
+}
+
+// ======================
+// BOARD RENDER
+// ======================
+
 function renderBoard(){
 
     const boardDiv = document.getElementById("board");
@@ -76,36 +107,41 @@ function renderBoard(){
         for(let c=0;c<8;c++){
 
             const square = document.createElement("div");
-            square.className = "square " + ((r+c)%2===0 ? "light" : "dark");
+            square.classList.add("square");
+            square.classList.add((r+c)%2===0?"light":"dark");
 
             const piece = board[r][c];
 
             if(piece){
                 const img = document.createElement("img");
-                img.src = pieceImages[
-                    piece.color==="w"
-                    ? piece.type.toUpperCase()
-                    : piece.type
-                ];
+                img.src = getPieceImage(piece);
                 img.classList.add("piece-img");
                 square.appendChild(img);
             }
 
-            // highlight last move
-            if(lastMove){
-                const from = lastMove.from;
-                const to = lastMove.to;
+            // SELECTED
+            if(selectedSquare && selectedSquare.row===r && selectedSquare.col===c){
+                square.classList.add("selected");
+            }
 
-                if(coordsToSquare(r,c) === from ||
-                   coordsToSquare(r,c) === to){
+            // LAST MOVE
+            if(lastMove){
+                const from = coordsToSquare(r,c);
+                if(from===lastMove.from || from===lastMove.to){
                     square.classList.add("last-move");
                 }
             }
 
-            if(selectedSquare &&
-               selectedSquare.row===r &&
-               selectedSquare.col===c){
-                square.classList.add("selected");
+            // LEGAL MOVES
+            if(selectedSquare){
+                const moves = chess.moves({
+                    square: coordsToSquare(selectedSquare.row, selectedSquare.col),
+                    verbose:true
+                });
+
+                if(moves.some(m=>m.to===coordsToSquare(r,c))){
+                    square.classList.add("legal");
+                }
             }
 
             square.onclick = () => handleClick(r,c);
@@ -117,14 +153,17 @@ function renderBoard(){
     updateUI();
 }
 
-/* CLICK */
+// ======================
+// CLICK LOGIC
+// ======================
+
 function handleClick(r,c){
 
     const sq = coordsToSquare(r,c);
 
+    // SELECT PIECE
     if(!selectedSquare){
         const piece = chess.get(sq);
-
         if(piece && piece.color==="w"){
             selectedSquare = {row:r,col:c};
             renderBoard();
@@ -134,70 +173,53 @@ function handleClick(r,c){
 
     const beforeEval = evaluateBoard();
 
-    const moveObj = {
-        from: coordsToSquare(selectedSquare.row, selectedSquare.col),
+    const moveResult = chess.move({
+        from: coordsToSquare(selectedSquare.row,selectedSquare.col),
         to: sq,
-        promotion: "q"
-    };
+        promotion:"q"
+    });
 
-    const moveResult = chess.move(moveObj);
+    selectedSquare = null;
 
     if(!moveResult){
-        selectedSquare = null;
         renderBoard();
         return;
     }
 
-    // TRAINING MODE
-    if(currentMode === "training"){
-
-        const moveSAN = moveResult.san;
-        const expectedMove = trainingLine.moves[trainingIndex];
-
-        if(moveSAN !== expectedMove){
-            chess.undo();
-
-            document.getElementById("coach").innerText =
-                "❌ Expected: " + expectedMove;
-
-            selectedSquare = null;
-            renderBoard();
-            return;
-        }
-
-        lastMove = moveResult;
-        trainingIndex++;
-
-        if(trainingIndex >= trainingLine.moves.length){
-            document.getElementById("coach").innerText =
-                "✅ Line complete!";
-            renderBoard();
-            return;
-        }
-
-        renderBoard();
-
-        const opponentMove = trainingLine.moves[trainingIndex];
-        const aiMoveResult = chess.move(opponentMove);
-
-        lastMove = aiMoveResult;
-        trainingIndex++;
-
-        renderBoard();
-        return;
-    }
-
-    // NORMAL PLAY
     lastMove = moveResult;
 
     const afterEval = evaluateBoard();
 
+    // BLUNDER DETECTION
     if(afterEval < beforeEval - 20){
         document.getElementById("coach").innerText =
             "Blunder: You lost material!";
     }
 
-    selectedSquare = null;
+    // TRAINING MODE
+    if(currentMode==="training" && trainingLine){
+
+        const expected = trainingLine.moves[trainingIndex];
+
+        if(moveResult.san !== expected){
+            alert("Wrong move! Expected: " + expected);
+            chess.undo();
+            renderBoard();
+            return;
+        }
+
+        trainingIndex++;
+
+        if(trainingIndex >= trainingLine.moves.length){
+            document.getElementById("coach").innerText =
+                "Training complete!";
+        }
+
+        saveProgress();
+    }
+
+    saveProgress();
+
     renderBoard();
 
     if(!chess.game_over() && currentMode==="computer"){
@@ -205,80 +227,41 @@ function handleClick(r,c){
     }
 }
 
-/* AI */
+// ======================
+// AI
+// ======================
+
 function aiMove(){
 
-    const moves = chess.moves({verbose:true});
-    const move = moves[Math.floor(Math.random()*moves.length)];
+    const moves = chess.moves({ verbose:true });
 
-    const result = chess.move(move);
-    lastMove = result;
+    let bestMove = null;
+    let bestValue = -9999;
 
-    renderBoard();
-}
+    for(let move of moves){
+        chess.move(move);
+        let value = evaluateBoard();
+        chess.undo();
 
-/* UI */
-function updateUI(){
-
-    document.getElementById("status").innerText =
-        chess.turn()==="w" ? "White to Move" : "Black to Move";
-
-    document.getElementById("history").innerHTML =
-        chess.history().join("<br>");
-
-    detectPositionPlan();
-}
-
-/* POSITION PLAN */
-function detectPositionPlan(){
-
-    for(let key in positionPlans){
-        if(positionPlans[key].condition()){
-            document.getElementById("positionPlan").innerText =
-                positionPlans[key].advice;
-            return;
+        if(value > bestValue){
+            bestValue = value;
+            bestMove = move;
         }
     }
 
-    document.getElementById("positionPlan").innerText =
-        "No structure detected.";
-}
+    const move = chess.move(bestMove);
+    lastMove = move;
 
-/* MODE */
-function changeMode(){
-
-    currentMode = document.getElementById("gameMode").value;
-    resetGame();
-
-    if(currentMode==="training"){
-        trainingLine =
-            trainingLines[Math.floor(Math.random()*trainingLines.length)];
-        trainingIndex = 0;
-
-        document.getElementById("coach").innerText =
-            "Training: " + trainingLine.name;
-    }
-}
-
-/* RESET */
-function resetGame(){
-    chess.reset();
-    selectedSquare = null;
-    lastMove = null;
     renderBoard();
 }
 
-/* UTILS */
-function coordsToSquare(r,c){
-    return "abcdefgh"[c] + (8-r);
-}
+// ======================
+// SIMPLE EVALUATION
+// ======================
 
-/* SIMPLE EVAL */
 function evaluateBoard(){
 
-    const values = {
-        p:1,n:3,b:3,r:5,q:9,k:0
-    };
+    const values = {p:1,n:3,b:3,r:5,q:9,k:0};
 
     let score = 0;
 
@@ -295,4 +278,103 @@ function evaluateBoard(){
     return score;
 }
 
+// ======================
+// COACH SYSTEM
+// ======================
+
+function updateUI(){
+
+    document.getElementById("status").innerText =
+        chess.turn()==="w" ? "White to Move" : "Black to Move";
+
+    document.getElementById("history").innerHTML =
+        chess.history().join("<br>");
+
+    adaptiveCoach();
+    detectPositionPlan();
+}
+
+// ======================
+// ADAPTIVE COACH
+// ======================
+
+function adaptiveCoach(){
+
+    let advice = "Balanced play detected.";
+
+    if(playerProfile.earlyQueenMoves > 3){
+        advice = "You move your queen early. Develop first.";
+    }
+    else if(playerProfile.earlyAttacks > 5){
+        advice = "You attack too early. Build position first.";
+    }
+    else if(playerProfile.pawnRushes > 10){
+        advice = "Too many pawn pushes. Watch structure.";
+    }
+
+    document.getElementById("adaptiveCoach").innerText = advice;
+}
+
+// ======================
+// POSITION PLAN
+// ======================
+
+function detectPositionPlan(){
+
+    for(let key in positionPlans){
+        if(positionPlans[key].condition()){
+            document.getElementById("positionPlan").innerText =
+                positionPlans[key].advice;
+            return;
+        }
+    }
+
+    document.getElementById("positionPlan").innerText =
+        "No special structure recognized.";
+}
+
+// ======================
+// MODE SWITCH
+// ======================
+
+function changeMode(){
+
+    currentMode = document.getElementById("gameMode").value;
+
+    resetGame();
+
+    if(currentMode==="training"){
+        trainingLine =
+            trainingLines[Math.floor(Math.random()*trainingLines.length)];
+        trainingIndex = 0;
+
+        document.getElementById("coach").innerText =
+            "Training: " + trainingLine.name;
+    }
+}
+
+// ======================
+// HELPERS
+// ======================
+
+function coordsToSquare(r,c){
+    return "abcdefgh"[c] + (8-r);
+}
+
+function getPieceImage(piece){
+    return `https://chessboardjs.com/img/chesspieces/wikipedia/${piece.color}${piece.type.toUpperCase()}.png`;
+}
+
+function resetGame(){
+    chess.reset();
+    lastMove = null;
+    selectedSquare = null;
+    renderBoard();
+}
+
+// ======================
+// INIT
+// ======================
+
+loadProgress();
 renderBoard();
