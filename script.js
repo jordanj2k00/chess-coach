@@ -102,10 +102,12 @@ function renderBoard(){
                 square.appendChild(img);
             }
 
+            // SELECTED
             if(selectedSquare && selectedSquare.row===r && selectedSquare.col===c){
                 square.classList.add("selected");
             }
 
+            // LAST MOVE
             if(lastMove){
                 const sq = coordsToSquare(r,c);
                 if(sq===lastMove.from || sq===lastMove.to){
@@ -113,6 +115,7 @@ function renderBoard(){
                 }
             }
 
+            // LEGAL MOVES
             if(selectedSquare){
                 const moves = chess.moves({
                     square: coordsToSquare(selectedSquare.row,selectedSquare.col),
@@ -197,15 +200,15 @@ function handleClick(r,c){
     }
 
     // ======================
-    // THEORY MODE (AUTO PLAY)
+    // THEORY MODE (FIXED)
     // ======================
 
     if(currentMode==="theory" && theoryLine){
 
-        const expected = theoryLine.moves[theoryIndex];
+        const expectedMove = theoryLine.moves[theoryIndex];
 
-        if(moveResult.san !== expected){
-            alert("Wrong move! Expected: " + expected);
+        if(moveResult.san !== expectedMove){
+            alert("Wrong move! Expected: " + expectedMove);
             chess.undo();
             renderBoard();
             return;
@@ -220,6 +223,7 @@ function handleClick(r,c){
             setTimeout(()=>{
                 const move = chess.move(opponentMove);
                 lastMove = move;
+
                 theoryIndex++;
 
                 renderBoard();
@@ -237,7 +241,8 @@ function handleClick(r,c){
             return;
         }
 
-        document.getElementById("coach").innerText = "🔥 Theory complete!";
+        document.getElementById("coach").innerText =
+            "🔥 Theory complete!";
     }
 
     saveProgress();
