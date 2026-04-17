@@ -12,6 +12,7 @@ let lessonMoveHighlight = null;
 
 let lessonTimeoutId = null;
 let gameResultRecorded = false;
+let flipped = false;
 
 // ======================
 // PLAYER + ELO
@@ -27,89 +28,6 @@ let playerProfile = {
     pawnRushes: 0,
     gamesPlayed: 0
 };
-
-// ======================
-// VOICE COACH
-// ======================
-
-let voiceEnabled = true;
-let voiceCache = [];
-let lastSpokenText = "";
-
-function refreshVoices() {
-    if (!("speechSynthesis" in window)) return;
-    voiceCache = speechSynthesis.getVoices() || [];
-}
-
-function initVoicePreference() {
-    const saved = localStorage.getItem("voiceEnabled");
-    if (saved !== null) {
-        try {
-            voiceEnabled = JSON.parse(saved);
-        } catch {
-            voiceEnabled = true;
-        }
-    }
-
-    const el = document.getElementById("voiceToggle");
-    if (el) el.checked = voiceEnabled;
-}
-
-function toggleVoice() {
-    const el = document.getElementById("voiceToggle");
-    voiceEnabled = !!(el && el.checked);
-    localStorage.setItem("voiceEnabled", JSON.stringify(voiceEnabled));
-
-    if (!voiceEnabled && "speechSynthesis" in window) {
-        speechSynthesis.cancel();
-    }
-}
-
-function pickNaturalVoice() {
-    const voices = voiceCache.length ? voiceCache : (speechSynthesis.getVoices() || []);
-
-    if (!voices.length) return null;
-
-    const preferred = voices.find(v =>
-        /natural|google|microsoft|samantha|victoria|aria|zira|alex/i.test(v.name)
-    );
-
-    if (preferred) return preferred;
-
-    const english = voices.find(v => /^en/i.test(v.lang));
-    if (english) return english;
-
-    return voices[0];
-}
-
-function speakCoach(text) {
-    if (!voiceEnabled || !("speechSynthesis" in window)) return;
-
-    const clean = String(text || "")
-        .replace(/\n+/g, ". ")
-        .replace(/\s+/g, " ")
-        .trim();
-
-    if (!clean || clean === lastSpokenText) return;
-
-    lastSpokenText = clean;
-
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.rate = 0.94;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-
-    const voice = pickNaturalVoice();
-    if (voice) utterance.voice = voice;
-
-    speechSynthesis.cancel();
-    speechSynthesis.speak(utterance);
-}
-
-if ("speechSynthesis" in window) {
-    refreshVoices();
-    window.speechSynthesis.onvoiceschanged = refreshVoices;
-}
 
 // ======================
 // REPERTOIRE TREE
@@ -358,7 +276,8 @@ const moveExplanations = {
     h6: "Stop piece jumps and prepare counterplay.",
     c6: "Support the center and prepare ...d5.",
     Be7: "Prepare to castle and keep the position flexible.",
-    Nbd7: "Improve piece coordination and support central play."
+    Nbd7: "Improve piece coordination and support central play.",
+    O: "Castle to keep the king safe."
 };
 
 function explainMove(moveSan) {
@@ -407,8 +326,7 @@ function saveProgress() {
         JSON.stringify({
             playerProfile,
             playerElo,
-            aiElo,
-            voiceEnabled
+            aiElo
         })
     );
 }
@@ -422,9 +340,6 @@ function loadProgress() {
         playerProfile = data.playerProfile || playerProfile;
         playerElo = Number.isFinite(data.playerElo) ? data.playerElo : 1200;
         aiElo = Number.isFinite(data.aiElo) ? data.aiElo : playerElo + 100;
-        if (typeof data.voiceEnabled === "boolean") {
-            voiceEnabled = data.voiceEnabled;
-        }
     } catch {
         // ignore malformed saved data
     }
@@ -517,47 +432,6 @@ function findBestRepertoireMatch(history) {
     }
 
     return best;
-}
-
-function speakCoach(text) {
-    if (!voiceEnabled || !("speechSynthesis" in window)) return;
-
-    const clean = String(text || "")
-        .replace(/\n+/g, ". ")
-        .replace(/\s+/g, " ")
-        .trim();
-
-    if (!clean || clean === lastSpokenText) return;
-
-    lastSpokenText = clean;
-
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.rate = 0.94;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-
-    const voice = pickNaturalVoice();
-    if (voice) utterance.voice = voice;
-
-    speechSynthesis.cancel();
-    speechSynthesis.speak(utterance);
-}
-
-function pickNaturalVoice() {
-    const voices = voiceCache.length ? voiceCache : (speechSynthesis.getVoices() || []);
-
-    if (!voices.length) return null;
-
-    const preferred = voices.find(v =>
-        /natural|google|microsoft|samantha|victoria|aria|zira|alex/i.test(v.name)
-    );
-
-    if (preferred) return preferred;
-
-    const english = voices.find(v => /^en/i.test(v.lang));
-    if (english) return english;
-
-    return voices[0];
 }
 
 // ======================
@@ -793,8 +667,6 @@ function autoPlayLessonPrelude(lesson, label) {
     const coachText = lessonCoachText(label, lesson, next || null);
 
     document.getElementById("coach").innerText = coachText;
-    speakCoach(coachText);
-
     renderBoard();
 }
 
@@ -808,7 +680,6 @@ function processLessonMove(lesson, label, moveResult) {
     if (typeof expected === "undefined") {
         const completeText = `${label} complete!`;
         document.getElementById("coach").innerText = completeText;
-        speakCoach(completeText);
         renderBoard();
         return;
     }
@@ -826,7 +697,6 @@ function processLessonMove(lesson, label, moveResult) {
     const coachText = lessonCoachText(label, lesson, nextSan || null);
 
     document.getElementById("coach").innerText = coachText;
-    speakCoach(coachText);
 
     if (nextSan) {
         lessonTimeoutId = setTimeout(() => {
@@ -844,7 +714,6 @@ function processLessonMove(lesson, label, moveResult) {
 
             const followupText = lessonCoachText(label, lesson, upcoming || null);
             document.getElementById("coach").innerText = followupText;
-            speakCoach(followupText);
 
             lessonTimeoutId = null;
             saveProgress();
@@ -914,10 +783,13 @@ function renderBoard() {
 
     for (let r = 0; r < 8; r++) {
         for (let c = 0; c < 8; c++) {
+            const displayR = flipped ? 7 - r : r;
+            const displayC = flipped ? 7 - c : c;
+
             const square = document.createElement("div");
             square.classList.add("square", (r + c) % 2 === 0 ? "light" : "dark");
 
-            const piece = board[r][c];
+            const piece = board[displayR][displayC];
 
             if (piece) {
                 const img = document.createElement("img");
@@ -926,27 +798,26 @@ function renderBoard() {
                 square.appendChild(img);
             }
 
-            if (selectedSquare && selectedSquare.row === r && selectedSquare.col === c) {
+            const actualSq = coordsToSquare(displayR, displayC);
+
+            if (selectedSquare && selectedSquare.row === displayR && selectedSquare.col === displayC) {
                 square.classList.add("selected");
             }
 
             if (lastMove) {
-                const sq = coordsToSquare(r, c);
-                if (sq === lastMove.from || sq === lastMove.to) {
+                if (actualSq === lastMove.from || actualSq === lastMove.to) {
                     square.classList.add("last-move");
                 }
             }
 
             if (lessonMoveHighlight) {
-                const sq = coordsToSquare(r, c);
-                if (sq === lessonMoveHighlight.from || sq === lessonMoveHighlight.to) {
+                if (actualSq === lessonMoveHighlight.from || actualSq === lessonMoveHighlight.to) {
                     square.classList.add("lesson-move");
                 }
             }
 
             if (bestMoveHighlight) {
-                const sq = coordsToSquare(r, c);
-                if (sq === bestMoveHighlight.from || sq === bestMoveHighlight.to) {
+                if (actualSq === bestMoveHighlight.from || actualSq === bestMoveHighlight.to) {
                     square.classList.add("best-move");
                 }
             }
@@ -957,12 +828,12 @@ function renderBoard() {
                     verbose: true
                 });
 
-                if (moves.some(move => move.to === coordsToSquare(r, c))) {
+                if (moves.some(move => move.to === actualSq)) {
                     square.classList.add("legal");
                 }
             }
 
-            square.onclick = () => handleClick(r, c);
+            square.onclick = () => handleClick(displayR, displayC);
             boardDiv.appendChild(square);
         }
     }
@@ -1050,7 +921,41 @@ function handleClick(r, c) {
 // AI
 // ======================
 
+function getCommonFirstResponse() {
+    const responses = [
+        { move: "e5", weight: 50 },
+        { move: "c5", weight: 25 },
+        { move: "e6", weight: 15 },
+        { move: "c6", weight: 10 }
+    ];
+
+    const pool = [];
+    responses.forEach(entry => {
+        for (let i = 0; i < entry.weight; i++) {
+            pool.push(entry.move);
+        }
+    });
+
+    return pool[Math.floor(Math.random() * pool.length)];
+}
+
 function aiMove() {
+    const history = chess.history();
+    const lastSan = history[history.length - 1];
+
+    if (currentMode === "computer" && history.length === 1 && normalizeSan(lastSan) === "e4" && chess.turn() === "b") {
+        const common = getCommonFirstResponse();
+        const move = findLegalMoveBySan(common);
+
+        if (move) {
+            const played = chess.move(move);
+            lastMove = played;
+            renderBoard();
+            maybeFinalizeComputerGame();
+            return;
+        }
+    }
+
     const best = chooseAiMove();
     if (!best) return;
 
@@ -1072,8 +977,28 @@ function showBestMove() {
     if (bestMoveHighlight) {
         const text = `Best move: ${bestMoveHighlight.san}. ${explainMove(bestMoveHighlight.san)}`;
         document.getElementById("coach").innerText = text;
-        speakCoach(text);
     }
+}
+
+// ======================
+// CONTROLS
+// ======================
+
+function flipBoard() {
+    flipped = !flipped;
+    renderBoard();
+}
+
+function resignGame() {
+    if (chess.game_over()) return;
+
+    gameResultRecorded = true;
+    updateElo(false);
+    document.getElementById("coach").innerText = "You resigned.";
+
+    setTimeout(() => {
+        resetGame();
+    }, 700);
 }
 
 // ======================
@@ -1093,7 +1018,8 @@ function updateUI() {
         (chess.turn() === "w" ? "White" : "Black") +
         " to Move | ELO: " + playerElo +
         " | Eval: " + evalScore.toFixed(2) +
-        " | Mode: " + modeLabel;
+        " | Mode: " + modeLabel +
+        (flipped ? " | Flipped" : "");
 
     document.getElementById("history").innerHTML =
         chess.history().join("<br>");
@@ -1188,7 +1114,6 @@ function resetGame() {
     bestMoveHighlight = null;
     lessonMoveHighlight = null;
     gameResultRecorded = false;
-    lastSpokenText = "";
 
     if (currentMode === "training" && trainingLine) {
         autoPlayLessonPrelude(trainingLine, "Training");
@@ -1209,10 +1134,4 @@ function resetGame() {
 
 loadProgress();
 syncAiElo();
-initVoicePreference();
-
-if (typeof speechSynthesis !== "undefined") {
-    refreshVoices();
-}
-
 renderBoard();
