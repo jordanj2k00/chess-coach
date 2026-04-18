@@ -9,12 +9,10 @@ let selectedSquare = null;
 let lastMove = null;
 let bestMoveHighlight = null;
 let lessonMoveHighlight = null;
+let flipped = false;
 
 let lessonTimeoutId = null;
 let gameResultRecorded = false;
-let flipped = false;
-
-let lastSpokenText = "";
 
 // ======================
 // PLAYER + ELO
@@ -444,51 +442,24 @@ function findBestRepertoireMatch(history) {
 
 function speak(text) {
     const clean = String(text || "").trim();
-    if (!clean || clean === lastSpokenText) return;
+    if (!clean) return;
 
-    lastSpokenText = clean;
+    if (!("speechSynthesis" in window)) return;
 
-    const playBrowserVoice = () => {
-        if (!("speechSynthesis" in window)) return;
+    const utter = new SpeechSynthesisUtterance(clean);
+    utter.rate = 0.96;
+    utter.pitch = 1;
+    utter.volume = 1;
 
-        const utter = new SpeechSynthesisUtterance(clean);
-        utter.rate = 0.96;
-        utter.pitch = 1;
-        utter.volume = 1;
+    const voices = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
+    const preferred = voices.find(v =>
+        /natural|google|microsoft|samantha|victoria|aria|zira|alex/i.test(v.name)
+    ) || voices.find(v => /^en/i.test(v.lang)) || voices[0];
 
-        const voices = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
-        const preferred = voices.find(v =>
-            /natural|google|microsoft|samantha|victoria|aria|zira|alex/i.test(v.name)
-        ) || voices.find(v => /^en/i.test(v.lang)) || voices[0];
+    if (preferred) utter.voice = preferred;
 
-        if (preferred) utter.voice = preferred;
-
-        speechSynthesis.cancel();
-        speechSynthesis.speak(utter);
-    };
-
-    if (window.fetch) {
-        fetch("/speak", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: clean })
-        })
-            .then(res => {
-                if (!res.ok) throw new Error("Voice endpoint failed");
-                return res.blob();
-            })
-            .then(audioBlob => {
-                const audio = new Audio(URL.createObjectURL(audioBlob));
-                audio.play().catch(() => {
-                    playBrowserVoice();
-                });
-            })
-            .catch(() => {
-                playBrowserVoice();
-            });
-    } else {
-        playBrowserVoice();
-    }
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utter);
 }
 
 // ======================
@@ -614,6 +585,32 @@ function chooseAiMove() {
 }
 
 // ======================
+// REPERTOIRE AI
+// ======================
+
+function getRepertoireMove() {
+    const history = chess.history();
+
+    for (const lesson of repertoireLessons) {
+        const moves = lesson.moves;
+        let match = true;
+
+        for (let i = 0; i < history.length; i++) {
+            if (normalizeSan(history[i]) !== normalizeSan(moves[i])) {
+                match = false;
+                break;
+            }
+        }
+
+        if (match) {
+            return moves[history.length] || null;
+        }
+    }
+
+    return null;
+}
+
+// ======================
 // ELO + RESULT
 // ======================
 
@@ -657,9 +654,8 @@ function maybeFinalizeComputerGame() {
         result === 0 ? "You lost!" :
         "Draw.";
 
-    document.getElementById("coach").innerText =
-        `${msg} New ELO: ${playerElo}`;
-
+    document.getElementById("coach").innerText = `${msg} New ELO: ${playerElo}`;
+    speak(`${msg} New ELO: ${playerElo}`);
     renderBoard();
 }
 
@@ -670,7 +666,6 @@ function maybeFinalizeComputerGame() {
 function updatePlayerProfile(moveResult, beforeEval, afterEval) {
     const plies = chess.history().length;
 
-    // Early opening habits
     if (moveResult.piece === "q" && plies <= 6) {
         playerProfile.earlyQueenMoves += 1;
     }
@@ -683,7 +678,6 @@ function updatePlayerProfile(moveResult, beforeEval, afterEval) {
         playerProfile.pawnRushes += 1;
     }
 
-    // Move quality
     const diff = afterEval - beforeEval;
     const moverScore = moveResult.color === "w" ? diff : -diff;
 
@@ -812,11 +806,10 @@ function explainPlayedMove(moveResult, beforeEval, afterEval) {
     const diff = afterEval - beforeEval;
     const moverScore = moveResult.color === "w" ? diff : -diff;
 
-    let parts = [];
+    const parts = [];
 
     if (moveResult.san.includes("#")) {
-        parts.push("Checkmate. The game is over.");
-        return parts.join(" ");
+        return "Checkmate. The game is over.";
     }
 
     if (moverScore <= -3) {
@@ -1058,6 +1051,7 @@ function handleClick(r, c) {
     if (currentMode === "analysis") {
         const explanation = explainPlayedMove(moveResult, beforeEval, afterEval);
         document.getElementById("coach").innerText = explanation;
+        speak(explanation);
     }
 
     saveProgress();
@@ -1074,38 +1068,26 @@ function handleClick(r, c) {
 // AI
 // ======================
 
-function getCommonFirstResponse() {
-    const responses = [
-        { move: "e5", weight: 50 },
-        { move: "c5", weight: 25 },
-        { move: "e6", weight: 15 },
-        { move: "c6", weight: 10 }
-    ];
-
-    const pool = [];
-    responses.forEach(entry => {
-        for (let i = 0; i < entry.weight; i++) {
-            pool.push(entry.move);
-        }
-    });
-
-    return pool[Math.floor(Math.random() * pool.length)];
-}
-
 function aiMove() {
     const history = chess.history();
-    const lastSan = history[history.length - 1];
+    const moveNumber = history.length;
 
-    if (currentMode === "computer" && history.length === 1 && normalizeSan(lastSan) === "e4" && chess.turn() === "b") {
-        const common = getCommonFirstResponse();
-        const move = findLegalMoveBySan(common);
+    const repMoveSan = getRepertoireMove();
+
+    let repertoireChance = 0.5;
+    if (moveNumber > 6) repertoireChance = 0.5;
+    if (moveNumber > 10) repertoireChance = 0.3;
+
+    if (currentMode === "computer" && repMoveSan && Math.random() < repertoireChance) {
+        const move = findLegalMoveBySan(repMoveSan);
 
         if (move) {
             const played = chess.move(move);
             lastMove = played;
 
-            const text = `Black played ${played.san}. ${explainMove(played.san)}`;
+            const text = `Repertoire move: ${played.san}. ${explainMove(played.san)}`;
             document.getElementById("coach").innerText = text;
+            speak(text);
 
             renderBoard();
             maybeFinalizeComputerGame();
@@ -1295,7 +1277,6 @@ function resetGame() {
     bestMoveHighlight = null;
     lessonMoveHighlight = null;
     gameResultRecorded = false;
-    lastSpokenText = "";
 
     if (currentMode === "training" && trainingLine) {
         autoPlayLessonPrelude(trainingLine, "Training");
