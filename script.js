@@ -14,6 +14,8 @@ let lessonTimeoutId = null;
 let gameResultRecorded = false;
 let flipped = false;
 
+let lastSpokenText = "";
+
 // ======================
 // PLAYER + ELO
 // ======================
@@ -26,7 +28,11 @@ let playerProfile = {
     earlyQueenMoves: 0,
     earlyAttacks: 0,
     pawnRushes: 0,
-    gamesPlayed: 0
+    gamesPlayed: 0,
+    blunders: 0,
+    mistakes: 0,
+    inaccuracies: 0,
+    goodMoves: 0
 };
 
 // ======================
@@ -257,7 +263,6 @@ const moveExplanations = {
     g3: "Prepare a fianchetto and control the long diagonal.",
     Bg2: "Fianchetto the bishop and support the center from afar.",
     Bg7: "Fianchetto the bishop and fight the center from distance.",
-    OO: "Keep the king safe and connect the rooks.",
     "O-O": "Keep the king safe and connect the rooks.",
     "O-O-O": "Castle long for opposite-side attacking chances.",
     Qb6: "Pressure b2 and d4 while increasing central tension.",
@@ -276,8 +281,7 @@ const moveExplanations = {
     h6: "Stop piece jumps and prepare counterplay.",
     c6: "Support the center and prepare ...d5.",
     Be7: "Prepare to castle and keep the position flexible.",
-    Nbd7: "Improve piece coordination and support central play.",
-    O: "Castle to keep the king safe."
+    Nbd7: "Improve piece coordination and support central play."
 };
 
 function explainMove(moveSan) {
@@ -432,6 +436,59 @@ function findBestRepertoireMatch(history) {
     }
 
     return best;
+}
+
+// ======================
+// VOICE
+// ======================
+
+function speak(text) {
+    const clean = String(text || "").trim();
+    if (!clean || clean === lastSpokenText) return;
+
+    lastSpokenText = clean;
+
+    const playBrowserVoice = () => {
+        if (!("speechSynthesis" in window)) return;
+
+        const utter = new SpeechSynthesisUtterance(clean);
+        utter.rate = 0.96;
+        utter.pitch = 1;
+        utter.volume = 1;
+
+        const voices = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
+        const preferred = voices.find(v =>
+            /natural|google|microsoft|samantha|victoria|aria|zira|alex/i.test(v.name)
+        ) || voices.find(v => /^en/i.test(v.lang)) || voices[0];
+
+        if (preferred) utter.voice = preferred;
+
+        speechSynthesis.cancel();
+        speechSynthesis.speak(utter);
+    };
+
+    if (window.fetch) {
+        fetch("/speak", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: clean })
+        })
+            .then(res => {
+                if (!res.ok) throw new Error("Voice endpoint failed");
+                return res.blob();
+            })
+            .then(audioBlob => {
+                const audio = new Audio(URL.createObjectURL(audioBlob));
+                audio.play().catch(() => {
+                    playBrowserVoice();
+                });
+            })
+            .catch(() => {
+                playBrowserVoice();
+            });
+    } else {
+        playBrowserVoice();
+    }
 }
 
 // ======================
@@ -610,11 +667,10 @@ function maybeFinalizeComputerGame() {
 // PROFILE TRACKING
 // ======================
 
-function updatePlayerProfile(moveResult) {
-    if (currentMode !== "computer") return;
-
+function updatePlayerProfile(moveResult, beforeEval, afterEval) {
     const plies = chess.history().length;
 
+    // Early opening habits
     if (moveResult.piece === "q" && plies <= 6) {
         playerProfile.earlyQueenMoves += 1;
     }
@@ -625,6 +681,20 @@ function updatePlayerProfile(moveResult) {
 
     if (moveResult.piece === "p" && plies <= 10) {
         playerProfile.pawnRushes += 1;
+    }
+
+    // Move quality
+    const diff = afterEval - beforeEval;
+    const moverScore = moveResult.color === "w" ? diff : -diff;
+
+    if (moverScore <= -3) {
+        playerProfile.blunders += 1;
+    } else if (moverScore <= -1) {
+        playerProfile.mistakes += 1;
+    } else if (moverScore <= -0.3) {
+        playerProfile.inaccuracies += 1;
+    } else if (moverScore >= 1) {
+        playerProfile.goodMoves += 1;
     }
 }
 
@@ -667,10 +737,12 @@ function autoPlayLessonPrelude(lesson, label) {
     const coachText = lessonCoachText(label, lesson, next || null);
 
     document.getElementById("coach").innerText = coachText;
+    speak(coachText);
+
     renderBoard();
 }
 
-function processLessonMove(lesson, label, moveResult) {
+function processLessonMove(lesson, label, moveResult, beforeEval, afterEval) {
     clearTimeout(lessonTimeoutId);
     lessonTimeoutId = null;
 
@@ -680,6 +752,7 @@ function processLessonMove(lesson, label, moveResult) {
     if (typeof expected === "undefined") {
         const completeText = `${label} complete!`;
         document.getElementById("coach").innerText = completeText;
+        speak(completeText);
         renderBoard();
         return;
     }
@@ -694,9 +767,16 @@ function processLessonMove(lesson, label, moveResult) {
     }
 
     const nextSan = lesson.moves[history.length];
-    const coachText = lessonCoachText(label, lesson, nextSan || null);
+
+    let coachText = lessonCoachText(label, lesson, nextSan || null);
+    const moveWhy = explainMove(moveResult.san);
+
+    if (moveWhy) {
+        coachText += `\n\nWhy this move: ${moveWhy}`;
+    }
 
     document.getElementById("coach").innerText = coachText;
+    speak(coachText);
 
     if (nextSan) {
         lessonTimeoutId = setTimeout(() => {
@@ -714,6 +794,7 @@ function processLessonMove(lesson, label, moveResult) {
 
             const followupText = lessonCoachText(label, lesson, upcoming || null);
             document.getElementById("coach").innerText = followupText;
+            speak(followupText);
 
             lessonTimeoutId = null;
             saveProgress();
@@ -721,6 +802,72 @@ function processLessonMove(lesson, label, moveResult) {
     }
 
     renderBoard();
+}
+
+// ======================
+// MOVE EXPLANATION
+// ======================
+
+function explainPlayedMove(moveResult, beforeEval, afterEval) {
+    const diff = afterEval - beforeEval;
+    const moverScore = moveResult.color === "w" ? diff : -diff;
+
+    let parts = [];
+
+    if (moveResult.san.includes("#")) {
+        parts.push("Checkmate. The game is over.");
+        return parts.join(" ");
+    }
+
+    if (moverScore <= -3) {
+        parts.push("Blunder. You likely dropped material or a major advantage.");
+    } else if (moverScore <= -1) {
+        parts.push("Mistake. Your position got worse.");
+    } else if (moverScore <= -0.3) {
+        parts.push("Inaccuracy. A better move existed.");
+    } else if (moverScore >= 3) {
+        parts.push("Brilliant move. Big gain.");
+    } else if (moverScore >= 1) {
+        parts.push("Strong move. You improved the position.");
+    } else if (moverScore >= 0.3) {
+        parts.push("Good move. Slight improvement.");
+    } else {
+        parts.push("Solid move.");
+    }
+
+    if (["e4", "d4", "e5", "d5", "c4", "c5"].includes(moveResult.to)) {
+        parts.push("It fights for the center.");
+    }
+
+    if (moveResult.piece === "n" || moveResult.piece === "b") {
+        if (chess.history().length <= 12) {
+            parts.push("It develops a piece.");
+        } else {
+            parts.push("It improves piece activity.");
+        }
+    }
+
+    if (moveResult.piece === "q" && chess.history().length <= 10) {
+        parts.push("Your queen is out early, so keep it safe.");
+    }
+
+    if (moveResult.piece === "p" && chess.history().length <= 10) {
+        parts.push("This is a pawn push. Watch your structure.");
+    }
+
+    if (moveResult.captured) {
+        parts.push("It wins material.");
+    }
+
+    if (moveResult.san.includes("+")) {
+        parts.push("It gives check.");
+    }
+
+    if (parts.length === 0) {
+        parts.push("Keep developing with purpose and stay true to the plan.");
+    }
+
+    return parts.join(" ");
 }
 
 // ======================
@@ -886,25 +1033,31 @@ function handleClick(r, c) {
 
     lastMove = moveResult;
 
-    updatePlayerProfile(moveResult);
-
     const afterEval = evaluateBoard();
 
-    if (currentMode === "computer" && afterEval < beforeEval - 2) {
-        document.getElementById("coach").innerText =
-            "Blunder: You lost material!";
+    updatePlayerProfile(moveResult, beforeEval, afterEval);
+
+    if (currentMode === "computer") {
+        const explanation = explainPlayedMove(moveResult, beforeEval, afterEval);
+        document.getElementById("coach").innerText = explanation;
+        speak(explanation);
     }
 
     if (currentMode === "training" && trainingLine) {
-        processLessonMove(trainingLine, "Training", moveResult);
+        processLessonMove(trainingLine, "Training", moveResult, beforeEval, afterEval);
         saveProgress();
         return;
     }
 
     if (currentMode === "theory" && theoryLine) {
-        processLessonMove(theoryLine, "Theory", moveResult);
+        processLessonMove(theoryLine, "Theory", moveResult, beforeEval, afterEval);
         saveProgress();
         return;
+    }
+
+    if (currentMode === "analysis") {
+        const explanation = explainPlayedMove(moveResult, beforeEval, afterEval);
+        document.getElementById("coach").innerText = explanation;
     }
 
     saveProgress();
@@ -950,6 +1103,10 @@ function aiMove() {
         if (move) {
             const played = chess.move(move);
             lastMove = played;
+
+            const text = `Black played ${played.san}. ${explainMove(played.san)}`;
+            document.getElementById("coach").innerText = text;
+
             renderBoard();
             maybeFinalizeComputerGame();
             return;
@@ -977,6 +1134,7 @@ function showBestMove() {
     if (bestMoveHighlight) {
         const text = `Best move: ${bestMoveHighlight.san}. ${explainMove(bestMoveHighlight.san)}`;
         document.getElementById("coach").innerText = text;
+        speak(text);
     }
 }
 
@@ -992,9 +1150,14 @@ function flipBoard() {
 function resignGame() {
     if (chess.game_over()) return;
 
-    gameResultRecorded = true;
-    updateElo(false);
-    document.getElementById("coach").innerText = "You resigned.";
+    if (currentMode === "computer") {
+        gameResultRecorded = true;
+        updateElo(false);
+    }
+
+    const text = "You resigned.";
+    document.getElementById("coach").innerText = text;
+    speak(text);
 
     setTimeout(() => {
         resetGame();
@@ -1043,16 +1206,33 @@ function updateUI() {
 // ======================
 
 function adaptiveCoach() {
-    let advice = "Balanced play.";
+    const messages = [];
 
-    if (playerProfile.earlyQueenMoves > 3) {
-        advice = "You move your queen early. Develop first.";
-    } else if (playerProfile.earlyAttacks > 5) {
-        advice = "You attack too early. Build your position first.";
-    } else if (playerProfile.pawnRushes > 10) {
-        advice = "Too many pawn pushes. Watch your structure.";
+    if (playerProfile.pawnRushes > 3) {
+        messages.push("Too many pawn pushes. You're weakening your structure.");
     }
 
+    if (playerProfile.earlyQueenMoves > 2) {
+        messages.push("You're bringing your queen out too early. Develop pieces first.");
+    }
+
+    if (playerProfile.earlyAttacks > 3) {
+        messages.push("You're attacking too early. Build your position first.");
+    }
+
+    if (playerProfile.blunders > 1) {
+        messages.push("You're losing material. Slow down and calculate.");
+    }
+
+    if (playerProfile.mistakes > 2) {
+        messages.push("You're making repeat mistakes. Check the move before you play it.");
+    }
+
+    if (messages.length === 0) {
+        messages.push("Balanced play. Keep developing and control the center.");
+    }
+
+    const advice = messages[Math.floor(Math.random() * messages.length)];
     document.getElementById("adaptiveCoach").innerText = advice;
 }
 
@@ -1095,8 +1275,9 @@ function changeMode() {
     resetGame();
 
     if (currentMode === "analysis") {
-        document.getElementById("coach").innerText =
-            "Analysis board active.";
+        const text = "Analysis board active.";
+        document.getElementById("coach").innerText = text;
+        speak(text);
     }
 }
 
@@ -1114,6 +1295,7 @@ function resetGame() {
     bestMoveHighlight = null;
     lessonMoveHighlight = null;
     gameResultRecorded = false;
+    lastSpokenText = "";
 
     if (currentMode === "training" && trainingLine) {
         autoPlayLessonPrelude(trainingLine, "Training");
