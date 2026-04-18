@@ -15,6 +15,10 @@ let lessonTimeoutId = null;
 let gameResultRecorded = false;
 let gameReviewShown = false;
 
+let blunderReplayActive = false;
+let blunderReplayTargetSan = null;
+let blunderReplayIndex = -1;
+
 // ======================
 // PLAYER + ELO
 // ======================
@@ -34,7 +38,6 @@ let playerProfile = {
     goodMoves: 0
 };
 
-// Current game tracking
 let currentGameStats = resetGameStats();
 
 function resetGameStats() {
@@ -807,6 +810,7 @@ function processLessonMove(lesson, label, moveResult) {
 
             const followupText = lessonCoachText(label, lesson, upcoming || null);
             document.getElementById("coach").innerText = followupText;
+            speak(followupText);
 
             lessonTimeoutId = null;
             saveProgress();
@@ -918,11 +922,13 @@ function getAnalysisCoachText() {
 
 let gameReview = [];
 
-function gradeMove(diff) {
-    if (diff <= -3) return "??";
-    if (diff <= -1) return "?";
-    if (diff < 0.3) return "✓";
-    if (diff < 1.5) return "!";
+function gradeMove(diff, color) {
+    const impact = color === "w" ? diff : -diff;
+
+    if (impact <= -3) return "??";
+    if (impact <= -1) return "?";
+    if (impact < 0.3) return "✓";
+    if (impact < 1.5) return "!";
     return "!!";
 }
 
@@ -936,21 +942,22 @@ function generateGameReview() {
     let reviewText = "📊 GAME REVIEW\n\n";
 
     gameReview.forEach(entry => {
-        const grade = gradeMove(entry.diff);
+        const grade = gradeMove(entry.diff, entry.color);
+
+        const impact = entry.color === "w" ? entry.diff : -entry.diff;
+        totalLoss += Math.abs(impact);
 
         if (grade === "??") blunders++;
         else if (grade === "?") mistakes++;
         else if (grade === "✓") inaccuracies++;
         else greatMoves++;
 
-        totalLoss += Math.abs(entry.diff);
-
         reviewText += `Move ${entry.moveNumber}: ${entry.move} ${grade}\n`;
 
         if (grade === "??") {
-            reviewText += `   ❌ Blunder. Best was ${entry.bestMove}\n`;
+            reviewText += `   ❌ Blunder. Best was ${entry.bestMove || "unknown"}\n`;
         } else if (grade === "?") {
-            reviewText += `   ⚠️ Better was ${entry.bestMove}\n`;
+            reviewText += `   ⚠️ Better was ${entry.bestMove || "unknown"}\n`;
         } else if (grade === "!!") {
             reviewText += `   🔥 Excellent move!\n`;
         }
@@ -995,6 +1002,58 @@ function generateGameReview() {
     return reviewText;
 }
 
+function findBiggestBlunder() {
+    if (gameReview.length === 0) return null;
+
+    let worst = null;
+    let worstImpact = 0;
+
+    gameReview.forEach((entry, index) => {
+        if (entry.color !== "w") return;
+
+        const impact = entry.color === "w" ? entry.diff : -entry.diff;
+
+        if (worst === null || impact < worstImpact) {
+            worst = { ...entry, index };
+            worstImpact = impact;
+        }
+    });
+
+    if (!worst || worstImpact > -1.5) return null;
+    return worst;
+}
+
+function startBlunderReplay() {
+    const blunder = findBiggestBlunder();
+
+    if (!blunder) {
+        document.getElementById("coach").innerText = "No major blunders. Solid game.";
+        return;
+    }
+
+    blunderReplayActive = true;
+    blunderReplayIndex = blunder.index;
+    blunderReplayTargetSan = blunder.bestMove || null;
+
+    chess.reset();
+
+    for (let i = 0; i < blunder.index; i++) {
+        chess.move(gameReview[i].move);
+    }
+
+    syncLastMoveFromHistory();
+    selectedSquare = null;
+    lastMove = null;
+    bestMoveHighlight = null;
+    lessonMoveHighlight = null;
+
+    const text = `❌ Blunder on move ${blunder.moveNumber}. Find the better move.`;
+    document.getElementById("coach").innerText = text;
+    speak(text);
+
+    renderBoard();
+}
+
 function endGameReview() {
     if (gameReviewShown) return;
     gameReviewShown = true;
@@ -1002,7 +1061,12 @@ function endGameReview() {
     const review = generateGameReview();
     document.getElementById("coach").innerText = review;
     alert(review);
+
     gameReview = [];
+
+    setTimeout(() => {
+        startBlunderReplay();
+    }, 1500);
 }
 
 // ======================
@@ -1138,9 +1202,30 @@ function handleClick(r, c) {
 
     lastMove = moveResult;
 
+    if (blunderReplayActive) {
+        const target = normalizeSan(blunderReplayTargetSan);
+
+        if (target && normalizeSan(moveResult.san) !== target) {
+            alert("Not the best move. Try again.");
+            chess.undo();
+            syncLastMoveFromHistory();
+            renderBoard();
+            return;
+        }
+
+        blunderReplayActive = false;
+        blunderReplayTargetSan = null;
+        blunderReplayIndex = -1;
+
+        const text = "✅ Correct. That's the best move.";
+        document.getElementById("coach").innerText = text;
+        speak(text);
+        renderBoard();
+        return;
+    }
+
     const afterEval = evaluateBoard();
 
-    // Track current game review
     gameReview.push({
         move: moveResult.san,
         piece: moveResult.piece,
@@ -1392,7 +1477,7 @@ function adaptiveCoach() {
         messages.push("You're pushing too many pawns. Develop pieces instead.");
     }
 
-    if (currentGameStats.earlyQueenMoves > 1) {
+    if (currentGameStats.earlyQueenMoves > 2) {
         messages.push("Your queen is coming out too early.");
     }
 
@@ -1478,6 +1563,9 @@ function resetGame() {
     gameReviewShown = false;
     gameReview = [];
     currentGameStats = resetGameStats();
+    blunderReplayActive = false;
+    blunderReplayTargetSan = null;
+    blunderReplayIndex = -1;
 
     if (currentMode === "training" && trainingLine) {
         autoPlayLessonPrelude(trainingLine, "Training");
