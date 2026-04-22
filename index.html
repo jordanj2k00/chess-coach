@@ -6,17 +6,12 @@
 <link rel="stylesheet" href="style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
 </head>
-
 <body>
 
 <div class="container">
-
-    <!-- LEFT SIDE -->
     <div class="left-panel">
-
         <h2>♟️ Chess Trainer</h2>
 
-        <!-- MODE -->
         <select id="gameMode" onchange="changeMode()">
             <option value="computer">Vs Computer</option>
             <option value="training">Training</option>
@@ -24,21 +19,6 @@
             <option value="analysis">Analysis</option>
         </select>
 
-        <!-- OPENING -->
-        <select id="openingSelect" onchange="updateVariationOptions()">
-            <option>Four Knights Scotch</option>
-            <option>Three Knights Game</option>
-            <option>French Defense: Advance Variation</option>
-            <option>Caro-Kann: Tal Variation</option>
-            <option>Sicilian Defense: Grand Prix Attack</option>
-            <option>King's Indian Defense</option>
-            <option>Alekhine Defense</option>
-        </select>
-
-        <!-- VARIATION -->
-        <select id="variationSelect"></select>
-
-        <!-- BUTTONS -->
         <div class="buttons">
             <button onclick="resetGame()">Reset</button>
             <button onclick="flipBoard()">Flip</button>
@@ -46,39 +26,23 @@
             <button onclick="resignGame()">Resign</button>
         </div>
 
-        <!-- STATUS -->
         <div id="status" class="box"></div>
-
-        <!-- OPENING DISPLAY -->
         <div id="openingDisplay" class="box gold"></div>
-
-        <!-- COACH -->
         <div id="coach" class="box"></div>
-
-        <!-- ADAPTIVE -->
         <div id="adaptiveCoach" class="box"></div>
-
-        <!-- POSITION PLAN -->
         <div id="positionPlan" class="box"></div>
-
-        <!-- HISTORY -->
         <div id="history" class="box history"></div>
-
     </div>
 
-    <!-- BOARD -->
     <div class="board-container">
         <div id="board"></div>
     </div>
 
-    <!-- EVAL BAR -->
     <div class="eval-bar">
         <div id="evalFill"></div>
     </div>
-
 </div>
 
 <script src="script.js"></script>
-
 </body>
 </html>
