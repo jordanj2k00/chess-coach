@@ -15,10 +15,6 @@ let lessonTimeoutId = null;
 let gameResultRecorded = false;
 let gameReviewShown = false;
 
-let blunderReplayActive = false;
-let blunderReplayTargetSan = null;
-let blunderReplayIndex = -1;
-
 // ======================
 // PLAYER + ELO
 // ======================
@@ -53,366 +49,53 @@ function resetGameStats() {
 }
 
 // ======================
-// REPERTOIRE TREE
+// TRAINING / THEORY LINES
 // ======================
 
-const repertoireTree = {
-    white: {
-        fourKnightsScotch: {
-            name: "Four Knights Scotch",
-            side: "white",
-            branches: [
-                {
-                    name: "Main Line",
-                    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "d4"],
-                    plan: "Fast development, central strike, open files, active pieces."
-                },
-                {
-                    name: "4...exd4 5.Nxd4",
-                    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "d4", "exd4", "Nxd4"],
-                    plan: "Recapture actively, keep pieces active, and use the open center."
-                },
-                {
-                    name: "4...Bb4 Pin",
-                    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "d4", "Bb4", "Bd2", "exd4"],
-                    plan: "Break the pin, keep development calm, and fight for the center."
-                },
-                {
-                    name: "4...d5 Break",
-                    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "d4", "d5", "exd5", "Nxd5"],
-                    plan: "Meet the central break, simplify if needed, and keep piece activity."
-                }
-            ]
-        },
-
-        threeKnights: {
-            name: "Three Knights Game",
-            side: "white",
-            branches: [
-                {
-                    name: "Transposition to Four Knights",
-                    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "d4"],
-                    plan: "Transpose into Four Knights territory and choose Scotch ideas."
-                },
-                {
-                    name: "Italian Setup with ...Bc5",
-                    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Bc5", "Bc4", "Nf6", "d3"],
-                    plan: "Develop naturally, pressure f7, and castle smoothly."
-                },
-                {
-                    name: "Fianchetto Setup",
-                    moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "g6", "Bc4", "Bg7", "d3"],
-                    plan: "Use calm development, occupy the center, and punish the slower setup."
-                }
-            ]
-        },
-
-        frenchAdvance: {
-            name: "French Defense: Advance Variation",
-            side: "white",
-            branches: [
-                {
-                    name: "Main Line ...c5",
-                    moves: ["e4", "e6", "d4", "d5", "e5", "c5", "c3", "Nc6", "Nf3"],
-                    plan: "Keep the center closed, support d4, and prepare kingside play."
-                },
-                {
-                    name: "...Qb6 Pressure",
-                    moves: ["e4", "e6", "d4", "d5", "e5", "Qb6", "Nf3", "Nc6", "c3"],
-                    plan: "Defend the center calmly and keep the space advantage."
-                },
-                {
-                    name: "...Nc6 Classical",
-                    moves: ["e4", "e6", "d4", "d5", "e5", "Nc6", "c3", "Qb6", "Bd3"],
-                    plan: "Develop smoothly and aim for a strong pawn chain and kingside initiative."
-                }
-            ]
-        },
-
-        caroKannTal: {
-            name: "Caro-Kann: Tal Variation",
-            side: "white",
-            branches: [
-                {
-                    name: "Main Tal Attack",
-                    moves: ["e4", "c6", "d4", "d5", "e5", "Bf5", "h4", "e6"],
-                    plan: "Use space, hit the bishop, and build direct kingside pressure."
-                },
-                {
-                    name: "...h5",
-                    moves: ["e4", "c6", "d4", "d5", "e5", "Bf5", "h4", "h5", "Bd3"],
-                    plan: "Keep attacking themes alive and stay aggressive on the kingside."
-                },
-                {
-                    name: "...c5",
-                    moves: ["e4", "c6", "d4", "d5", "e5", "Bf5", "h4", "c5", "Bd3"],
-                    plan: "Stay alert to counterplay and keep the attack rolling."
-                }
-            ]
-        },
-
-        sicilianGrandPrix: {
-            name: "Sicilian Defense: Grand Prix Attack",
-            side: "white",
-            branches: [
-                {
-                    name: "...Nc6",
-                    moves: ["e4", "c5", "Nc3", "Nc6", "f4", "g6", "Nf3"],
-                    plan: "Build the Grand Prix setup and launch a kingside attack."
-                },
-                {
-                    name: "...d6",
-                    moves: ["e4", "c5", "Nc3", "d6", "f4", "Nc6", "Nf3"],
-                    plan: "Keep the attacking structure and strike before Black settles."
-                },
-                {
-                    name: "...e6",
-                    moves: ["e4", "c5", "Nc3", "e6", "f4", "d5"],
-                    plan: "Keep the initiative and stay ready for central breaks."
-                }
-            ]
-        }
+const trainingLines = [
+    {
+        name: "Four Knights Scotch",
+        side: "white",
+        moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6", "d4"],
+        plan: "Fast development, central strike, open files, active pieces."
     },
-
-    black: {
-        kingsIndianDefense: {
-            name: "King's Indian Defense",
-            side: "black",
-            branches: [
-                {
-                    name: "Classical",
-                    moves: ["d4", "Nf6", "c4", "g6", "Nc3", "Bg7", "e4", "d6", "Nf3", "O-O"],
-                    plan: "Challenge the center later and prepare the kingside attack."
-                },
-                {
-                    name: "Fianchetto",
-                    moves: ["d4", "Nf6", "c4", "g6", "Nf3", "Bg7", "g3", "O-O", "Bg2"],
-                    plan: "Play for central breaks and active piece play."
-                },
-                {
-                    name: "Sämisch",
-                    moves: ["d4", "Nf6", "c4", "g6", "Nc3", "Bg7", "f3", "O-O", "e4"],
-                    plan: "Attack the center, keep the position flexible, and prepare counterplay."
-                },
-                {
-                    name: "Four Pawns",
-                    moves: ["d4", "Nf6", "c4", "g6", "e4", "Bg7", "f4", "d6", "Nf3"],
-                    plan: "Strike the center fast and punish overextension with timely breaks."
-                }
-            ]
-        },
-
-        alekhineDefense: {
-            name: "Alekhine Defense",
-            side: "black",
-            branches: [
-                {
-                    name: "Main Line",
-                    moves: ["e4", "Nf6", "e5", "Nd5", "d4", "d6", "Nf3"],
-                    plan: "Attack White's center later with ...d6 and ...c5 ideas."
-                },
-                {
-                    name: "Exchange Structure",
-                    moves: ["e4", "Nf6", "e5", "Nd5", "d4", "d6", "c4", "Nb6"],
-                    plan: "Use the central tension and piece activity to equalize and counterattack."
-                },
-                {
-                    name: "Four Pawns Attack",
-                    moves: ["e4", "Nf6", "e5", "Nd5", "d4", "d6", "c4", "Nb6", "f4"],
-                    plan: "Stay flexible, hit the center from the sides, and exploit overextension."
-                }
-            ]
-        }
+    {
+        name: "Alekhine Defense",
+        side: "black",
+        moves: ["e4", "Nf6", "e5", "Nd5", "d4"],
+        plan: "Attack White's center later with ...d6 and ...c5 ideas."
+    },
+    {
+        name: "French Advance",
+        side: "white",
+        moves: ["e4", "e6", "d4", "d5", "e5", "c5"],
+        plan: "Keep the center closed and prepare kingside play."
     }
-};
+];
 
-function buildRepertoireLessons(tree) {
-    const lessons = [];
-
-    for (const sideGroup of Object.values(tree)) {
-        for (const opening of Object.values(sideGroup)) {
-            for (const branch of opening.branches) {
-                lessons.push({
-                    side: opening.side,
-                    opening: opening.name,
-                    branch: branch.name,
-                    name: `${opening.name} - ${branch.name}`,
-                    moves: branch.moves,
-                    plan: branch.plan
-                });
-            }
-        }
+const openingLines = [
+    {
+        name: "Four Knights Game",
+        side: "white",
+        moves: ["e4", "e5", "Nf3", "Nc6", "Nc3", "Nf6"],
+        plan: "Develop quickly, keep the center flexible, and prepare d4."
+    },
+    {
+        name: "Scotch Game",
+        side: "white",
+        moves: ["e4", "e5", "Nf3", "Nc6", "d4"],
+        plan: "Strike the center early and open the position."
+    },
+    {
+        name: "French Defense: Advance Variation",
+        side: "white",
+        moves: ["e4", "e6", "d4", "d5", "e5", "c5"],
+        plan: "Space advantage, keep the center locked, and attack later."
     }
-
-    return lessons;
-}
-
-const repertoireLessons = buildRepertoireLessons(repertoireTree);
-
-function getLessonsByOpening(openingName) {
-    return repertoireLessons.filter(l => l.opening === openingName);
-}
-
-function getVariationsByOpening(openingName) {
-    return repertoireLessons.filter(l => l.opening === openingName);
-}
-
-function detectOpening() {
-    const history = chess.history();
-
-    let bestMatch = null;
-    let bestLength = 0;
-
-    for (const lesson of repertoireLessons) {
-        const matchLength = commonPrefixLength(history, lesson.moves);
-
-        if (matchLength > bestLength) {
-            bestLength = matchLength;
-            bestMatch = lesson;
-        }
-    }
-
-    if (!bestMatch || bestLength < 3) return null;
-
-    return {
-        name: bestMatch.opening,
-        branch: bestMatch.branch,
-        plan: bestMatch.plan,
-        progress: `${bestLength}/${bestMatch.moves.length}`
-    };
-}
-
-function getSelectedVariationLesson() {
-    const opening = document.getElementById("openingSelect")?.value;
-    const variationName = document.getElementById("variationSelect")?.value;
-
-    const variations = getVariationsByOpening(opening);
-    return variations.find(v => v.name === variationName) || variations[0] || null;
-}
-
-function applySelectionToCurrentMode() {
-    const selectedLesson = getSelectedVariationLesson();
-
-    if (currentMode === "training") {
-        trainingLine = selectedLesson;
-    } else if (currentMode === "theory") {
-        theoryLine = selectedLesson;
-    }
-}
-
-function updateVariationOptions() {
-    const opening = document.getElementById("openingSelect")?.value;
-    const variationSelect = document.getElementById("variationSelect");
-    if (!variationSelect) return;
-
-    variationSelect.innerHTML = "";
-
-    const variations = getVariationsByOpening(opening);
-
-    variations.forEach(v => {
-        const option = document.createElement("option");
-        option.value = v.name;
-        option.textContent = v.branch;
-        variationSelect.appendChild(option);
-    });
-
-    if (variations.length > 0) {
-        variationSelect.value = variations[0].name;
-    }
-
-    applySelectionToCurrentMode();
-}
-
-let currentNode = null;
-
-function startTrainingFromTree(tree) {
-    chess.reset();
-    currentNode = tree;
-
-    document.getElementById("coach").innerText = "Start: " + tree.name;
-
-    renderBoard();
-}
-
-// ======================
-// CURRENT LESSON STATE
-// ======================
+];
 
 let trainingLine = null;
 let theoryLine = null;
-
-// ======================
-// MOVE EXPLANATIONS
-// ======================
-
-const moveExplanations = {
-    e4: "Take the center and open lines for your pieces.",
-    e5: "Challenge the center and free your pieces.",
-    Nf3: "Develop a knight and pressure the center.",
-    Nc3: "Support the center and stay flexible.",
-    d4: "Strike the center and open the position.",
-    d5: "Challenge the center and keep the position balanced.",
-    c3: "Support d4 and build a strong pawn chain.",
-    c4: "Fight for central space and diagonal control.",
-    exd4: "Open the center and simplify the pawn structure.",
-    Nxd4: "Recapture actively and keep pressure in the center.",
-    Bb5: "Pin the knight and pressure the center.",
-    Bc4: "Aim at f7 and develop with initiative.",
-    Bd3: "Develop toward the kingside and keep attacking chances alive.",
-    Bf4: "Develop naturally and prepare active piece play.",
-    f4: "Gain kingside space and start an attack.",
-    h4: "Expand on the kingside and pressure the setup.",
-    g3: "Prepare a fianchetto and control the long diagonal.",
-    Bg2: "Fianchetto the bishop and support the center from afar.",
-    Bg7: "Fianchetto the bishop and fight the center from distance.",
-    "O-O": "Keep the king safe and connect the rooks.",
-    "O-O-O": "Castle long for opposite-side attacking chances.",
-    Qb6: "Pressure b2 and d4 while increasing central tension.",
-    Bb4: "Pin the knight and create pressure on the center.",
-    Bf5: "Develop the bishop outside the pawn chain and fight for active squares.",
-    Bc5: "Develop actively and aim at f2/f7.",
-    Nd5: "Retreat while keeping pressure on the center.",
-    Nf6: "Develop a piece and challenge White’s center.",
-    Nc6: "Develop naturally and support central play.",
-    e6: "Support the center and free the light-squared bishop.",
-    d6: "Support the center and keep the king flexible.",
-    c5: "Strike the center and gain queenside space.",
-    g6: "Prepare a fianchetto and control long diagonals.",
-    b6: "Prepare a queenside fianchetto and control dark squares.",
-    a6: "Kick the bishop and gain space on the queenside.",
-    h6: "Stop piece jumps and prepare counterplay.",
-    c6: "Support the center and prepare ...d5.",
-    Be7: "Prepare to castle and keep the position flexible.",
-    Nbd7: "Improve piece coordination and support central play."
-};
-
-function explainMove(moveSan) {
-    const clean = normalizeSan(moveSan);
-    return moveExplanations[clean] || "Keep developing with purpose and stay true to the plan.";
-}
-
-// ======================
-// POSITION PLANS
-// ======================
-
-const positionPlans = {
-    frenchAdvance: {
-        condition: () => chess.get("e5") && chess.get("d4") && chess.get("e6"),
-        advice: "French Advance: space advantage. Keep the center locked and attack the kingside."
-    },
-    kingsideAttack: {
-        condition: () => chess.get("f4") || chess.get("g4") || chess.get("h4"),
-        advice: "Kingside attack: bring rooks in and open files toward the king."
-    },
-    developedCenter: {
-        condition: () => chess.get("e4") && chess.get("d4"),
-        advice: "Strong center: develop quickly and castle."
-    },
-    openCenter: {
-        condition: () => !chess.get("d4") && !chess.get("e4"),
-        advice: "Open center: activate pieces and look for tactics."
-    }
-};
 
 // ======================
 // SAVE / LOAD
@@ -448,7 +131,7 @@ function syncAiElo() {
 }
 
 // ======================
-// GENERAL HELPERS
+// HELPERS
 // ======================
 
 function coordsToSquare(r, c) {
@@ -475,26 +158,12 @@ function commonPrefixLength(a, b) {
     return limit;
 }
 
-function pickRandomLesson() {
-    return repertoireLessons[Math.floor(Math.random() * repertoireLessons.length)];
+function pickRandomTrainingLine() {
+    return trainingLines[Math.floor(Math.random() * trainingLines.length)];
 }
 
-function getActiveLesson() {
-    if (currentMode === "training") return trainingLine;
-    if (currentMode === "theory") return theoryLine;
-    return null;
-}
-
-function lessonUserColor(lesson) {
-    return lesson && lesson.side === "black" ? "b" : "w";
-}
-
-function getCurrentUserColor() {
-    const lesson = getActiveLesson();
-    if (lesson) {
-        return lessonUserColor(lesson);
-    }
-    return "w";
+function pickRandomTheoryLine() {
+    return openingLines[Math.floor(Math.random() * openingLines.length)];
 }
 
 function syncLastMoveFromHistory() {
@@ -516,7 +185,7 @@ function findBestRepertoireMatch(history) {
     let best = null;
     let bestLen = 0;
 
-    for (const lesson of repertoireLessons) {
+    for (const lesson of [...trainingLines, ...openingLines]) {
         const prefixLen = commonPrefixLength(history, lesson.moves);
 
         if (prefixLen > bestLen) {
@@ -559,18 +228,11 @@ function speak(text) {
 }
 
 // ======================
-// EVAL + SEARCH
+// EVALUATION
 // ======================
 
 function evaluateBoard() {
-    const values = {
-        p: 1,
-        n: 3,
-        b: 3,
-        r: 5,
-        q: 9,
-        k: 0
-    };
+    const values = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
 
     let score = 0;
 
@@ -586,6 +248,10 @@ function evaluateBoard() {
 
     return score;
 }
+
+// ======================
+// AI
+// ======================
 
 function getSearchDepth() {
     if (currentMode === "analysis") return 3;
@@ -684,7 +350,7 @@ function chooseAiMove() {
 function getRepertoireMove() {
     const history = chess.history();
 
-    for (const lesson of repertoireLessons) {
+    for (const lesson of [...trainingLines, ...openingLines]) {
         const moves = lesson.moves;
         let match = true;
 
@@ -791,111 +457,44 @@ function updatePlayerProfile(moveResult, beforeEval, afterEval) {
 }
 
 // ======================
-// LESSON / THEORY COACHING
+// COACHING
 // ======================
 
-function lessonCoachText(label, lesson, nextMove) {
-    const sideText = lesson.side === "white" ? "White" : "Black";
+function explainMove(moveSan) {
+    const map = {
+        e4: "Take the center and open lines for your pieces.",
+        e5: "Challenge the center and free your pieces.",
+        Nf3: "Develop a knight and pressure the center.",
+        Nc3: "Support the center and stay flexible.",
+        d4: "Strike the center and open the position.",
+        d5: "Challenge the center and keep the position balanced.",
+        c3: "Support d4 and build a strong pawn chain.",
+        c4: "Fight for central space and diagonal control.",
+        exd4: "Open the center and simplify the pawn structure.",
+        Nxd4: "Recapture actively and keep pressure in the center.",
+        Bc4: "Aim at f7 and develop with initiative.",
+        Bd3: "Develop toward the kingside and keep attacking chances alive.",
+        f4: "Gain kingside space and start an attack.",
+        g3: "Prepare a fianchetto and control the long diagonal.",
+        Bg2: "Fianchetto the bishop and support the center from afar.",
+        Bg7: "Fianchetto the bishop and fight the center from distance.",
+        "O-O": "Keep the king safe and connect the rooks.",
+        Qb6: "Pressure b2 and d4 while increasing central tension.",
+        Bb4: "Pin the knight and create pressure on the center.",
+        Bf5: "Develop the bishop outside the pawn chain and fight for active squares.",
+        Bc5: "Develop actively and aim at f2/f7.",
+        Nf6: "Develop a piece and challenge White’s center.",
+        Nc6: "Develop naturally and support central play.",
+        e6: "Support the center and free the light-squared bishop.",
+        d6: "Support the center and keep the king flexible.",
+        c5: "Strike the center and gain queenside space.",
+        g6: "Prepare a fianchetto and control long diagonals.",
+        c6: "Support the center and prepare ...d5."
+    };
 
-    return [
-        `${label}: ${lesson.opening} - ${lesson.branch}`,
-        `Side: ${sideText}`,
-        `Plan: ${lesson.plan}`,
-        nextMove ? `Next: ${nextMove}` : `${label} complete!`,
-        nextMove ? `Why: ${explainMove(nextMove)}` : "Why: Review the resulting position and the plan."
-    ].join("\n");
+    const clean = normalizeSan(moveSan);
+    return map[clean] || "Keep developing with purpose and stay true to the plan.";
 }
-
-function autoPlayLessonPrelude(lesson, label) {
-    if (!lesson) return;
-
-    const userColor = lessonUserColor(lesson);
-
-    while (chess.turn() !== userColor) {
-        const idx = chess.history().length;
-        const san = lesson.moves[idx];
-
-        if (!san) break;
-
-        const move = chess.move(san);
-        if (!move) break;
-
-        lastMove = move;
-    }
-
-    syncLastMoveFromHistory();
-
-    const next = lesson.moves[chess.history().length];
-    const coachText = lessonCoachText(label, lesson, next || null);
-
-    document.getElementById("coach").innerText = coachText;
-    renderBoard();
-}
-
-function processLessonMove(lesson, label, moveResult) {
-    clearTimeout(lessonTimeoutId);
-    lessonTimeoutId = null;
-
-    const history = chess.history();
-    const expected = lesson.moves[history.length - 1];
-
-    if (typeof expected === "undefined") {
-        const completeText = `${label} complete!`;
-        document.getElementById("coach").innerText = completeText;
-        renderBoard();
-        return;
-    }
-
-    if (normalizeSan(moveResult.san) !== normalizeSan(expected)) {
-        alert(`Wrong move! Expected: ${expected}`);
-
-        chess.undo();
-        syncLastMoveFromHistory();
-        renderBoard();
-        return;
-    }
-
-    const nextSan = lesson.moves[history.length];
-
-    let coachText = lessonCoachText(label, lesson, nextSan || null);
-    const moveWhy = explainMove(moveResult.san);
-
-    if (moveWhy) {
-        coachText += `\n\nWhy this move: ${moveWhy}`;
-    }
-
-    document.getElementById("coach").innerText = coachText;
-    speak(coachText);
-
-    if (nextSan) {
-        lessonTimeoutId = setTimeout(() => {
-            if (chess.game_over()) return;
-
-            const reply = chess.move(nextSan);
-            if (!reply) return;
-
-            lastMove = reply;
-            syncLastMoveFromHistory();
-            renderBoard();
-
-            const newHistory = chess.history();
-            const upcoming = lesson.moves[newHistory.length];
-
-            const followupText = lessonCoachText(label, lesson, upcoming || null);
-            document.getElementById("coach").innerText = followupText;
-            speak(followupText);
-
-            lessonTimeoutId = null;
-            saveProgress();
-        }, 400);
-    }
-
-    renderBoard();
-}
-
-// ======================
-// MOVE EXPLANATION
-// ======================
 
 function explainPlayedMove(moveResult, beforeEval, afterEval) {
     const diff = afterEval - beforeEval;
@@ -958,190 +557,74 @@ function explainPlayedMove(moveResult, beforeEval, afterEval) {
     return parts.join(" ");
 }
 
-// ======================
-// ANALYSIS / OPENING IDENTIFICATION
-// ======================
-
-function getAnalysisCoachText() {
+function adaptiveCoach() {
     const history = chess.history();
-    const evalScore = evaluateBoard().toFixed(2);
-    const bestText = bestMoveHighlight
-        ? `Best: ${bestMoveHighlight.san} — ${explainMove(bestMoveHighlight.san)}`
-        : "";
+    const coachBox = document.getElementById("adaptiveCoach");
+    if (!coachBox) return;
 
-    const match = findBestRepertoireMatch(history);
-
-    if (!match) {
-        return [
-            "Opening: Unrecognized",
-            `Eval: ${evalScore}`,
-            bestText
-        ].filter(Boolean).join("\n");
-    }
-
-    return [
-        `Opening: ${match.opening}`,
-        `Branch: ${match.branch}`,
-        `In book: ${match.matchedPlies}/${match.moves.length} plies`,
-        `Plan: ${match.plan}`,
-        `Eval: ${evalScore}`,
-        bestText
-    ].filter(Boolean).join("\n");
-}
-
-// ======================
-// GAME REVIEW
-// ======================
-
-let gameReview = [];
-
-function gradeMove(diff, color) {
-    const impact = color === "w" ? diff : -diff;
-
-    if (impact <= -3) return "??";
-    if (impact <= -1) return "?";
-    if (impact < 0.3) return "✓";
-    if (impact < 1.5) return "!";
-    return "!!";
-}
-
-function generateGameReview() {
-    let blunders = 0;
-    let mistakes = 0;
-    let inaccuracies = 0;
-    let greatMoves = 0;
-    let totalLoss = 0;
-
-    let reviewText = "📊 GAME REVIEW\n\n";
-
-    gameReview.forEach(entry => {
-        const grade = gradeMove(entry.diff, entry.color);
-
-        const impact = entry.color === "w" ? entry.diff : -entry.diff;
-        totalLoss += Math.abs(impact);
-
-        if (grade === "??") blunders++;
-        else if (grade === "?") mistakes++;
-        else if (grade === "✓") inaccuracies++;
-        else greatMoves++;
-
-        reviewText += `Move ${entry.moveNumber}: ${entry.move} ${grade}\n`;
-
-        if (grade === "??") {
-            reviewText += `   ❌ Blunder. Best was ${entry.bestMove || "unknown"}\n`;
-        } else if (grade === "?") {
-            reviewText += `   ⚠️ Better was ${entry.bestMove || "unknown"}\n`;
-        } else if (grade === "!!") {
-            reviewText += `   🔥 Excellent move!\n`;
-        }
-    });
-
-    const avgLoss = gameReview.length ? (totalLoss / gameReview.length).toFixed(2) : "0.00";
-    const accuracy = Math.max(0, 100 - (avgLoss * 10)).toFixed(0);
-
-    reviewText += "\n====================\n";
-    reviewText += `Accuracy: ${accuracy}%\n`;
-    reviewText += `Blunders: ${blunders}\n`;
-    reviewText += `Mistakes: ${mistakes}\n`;
-    reviewText += `Inaccuracies: ${inaccuracies}\n`;
-    reviewText += `Great Moves: ${greatMoves}\n`;
-
-    const history = gameReview.map(m => m.move);
-    const match = findBestRepertoireMatch(history);
-
-    if (match) {
-        reviewText += `\n📖 Opening: ${match.opening} (${match.branch})\n`;
-        reviewText += `Plan: ${match.plan}\n`;
-    }
-
-    reviewText += "\n🧠 Coaching Summary:\n";
-
-    if (currentGameStats.pawnRushes > 3) {
-        reviewText += "- Too many pawn pushes early\n";
-    }
-
-    if (currentGameStats.earlyQueenMoves > 2) {
-        reviewText += "- Queen developed too early\n";
-    }
-
-    if (blunders > 2) {
-        reviewText += "- Major issue: Blunders. Slow down and calculate.\n";
-    } else if (mistakes > 3) {
-        reviewText += "- Improve consistency in move quality.\n";
-    } else {
-        reviewText += "- Solid overall performance.\n";
-    }
-
-    return reviewText;
-}
-
-function findBiggestBlunder() {
-    if (gameReview.length === 0) return null;
-
-    let worst = null;
-    let worstImpact = 0;
-
-    gameReview.forEach((entry, index) => {
-        if (entry.color !== "w") return;
-
-        const impact = entry.color === "w" ? entry.diff : -entry.diff;
-
-        if (worst === null || impact < worstImpact) {
-            worst = { ...entry, index };
-            worstImpact = impact;
-        }
-    });
-
-    if (!worst || worstImpact > -1.5) return null;
-    return worst;
-}
-
-function startBlunderReplay() {
-    const blunder = findBiggestBlunder();
-
-    if (!blunder) {
-        document.getElementById("coach").innerText = "No major blunders. Solid game.";
+    if (history.length === 0) {
+        coachBox.innerText = "Ready for battle.";
         return;
     }
 
-    blunderReplayActive = true;
-    blunderReplayIndex = blunder.index;
-    blunderReplayTargetSan = blunder.bestMove || null;
-
-    chess.reset();
-
-    for (let i = 0; i < blunder.index; i++) {
-        chess.move(gameReview[i].move);
+    if (history.length === 1) {
+        coachBox.innerText = "Good start. Control the center and develop your pieces.";
+        return;
     }
 
-    syncLastMoveFromHistory();
-    selectedSquare = null;
-    lastMove = null;
-    bestMoveHighlight = null;
-    lessonMoveHighlight = null;
+    const messages = [];
 
-    const text = `❌ Blunder on move ${blunder.moveNumber}. Find the better move.`;
-    document.getElementById("coach").innerText = text;
-    speak(text);
+    if (currentGameStats.pawnRushes > 3) {
+        messages.push("You're pushing too many pawns. Develop pieces instead.");
+    }
 
-    renderBoard();
+    if (currentGameStats.earlyQueenMoves > 2) {
+        messages.push("Your queen is coming out too early.");
+    }
+
+    if (currentGameStats.blunders > 0) {
+        messages.push("You've made a blunder. Watch your pieces.");
+    }
+
+    if (currentGameStats.mistakes > 1) {
+        messages.push("Too many mistakes. Slow down.");
+    }
+
+    if (currentGameStats.goodMoves > currentGameStats.mistakes) {
+        messages.push("You're playing solid chess.");
+    }
+
+    if (messages.length === 0) {
+        messages.push("Balanced position. Keep improving.");
+    }
+
+    coachBox.innerText = messages[Math.floor(Math.random() * messages.length)];
 }
 
-function endGameReview() {
-    if (gameReviewShown) return;
-    gameReviewShown = true;
+function detectPositionPlan() {
+    const box = document.getElementById("positionPlan");
+    if (!box) return;
 
-    const review = generateGameReview();
-    document.getElementById("coach").innerText = review;
-    alert(review);
+    if (chess.get("e5") && chess.get("d4") && chess.get("e6")) {
+        box.innerText = "French Advance: space advantage. Keep the center locked and attack the kingside.";
+        return;
+    }
 
-    setTimeout(() => {
-        startBlunderReplay();
-    }, 1500);
+    if (chess.get("f4") || chess.get("g4") || chess.get("h4")) {
+        box.innerText = "Kingside attack: bring rooks in and open files toward the king.";
+        return;
+    }
+
+    if (chess.get("e4") && chess.get("d4")) {
+        box.innerText = "Strong center: develop quickly and castle.";
+        return;
+    }
+
+    box.innerText = "Open center: activate pieces and look for tactics.";
 }
 
 // ======================
-// BOARD RENDER
+// BOARD / RENDER
 // ======================
 
 function refreshHints() {
@@ -1275,40 +758,7 @@ function handleClick(r, c) {
 
     lastMove = moveResult;
 
-    if (blunderReplayActive) {
-        const target = normalizeSan(blunderReplayTargetSan);
-
-        if (target && normalizeSan(moveResult.san) !== target) {
-            alert("Not the best move. Try again.");
-            chess.undo();
-            syncLastMoveFromHistory();
-            renderBoard();
-            return;
-        }
-
-        blunderReplayActive = false;
-        blunderReplayTargetSan = null;
-        blunderReplayIndex = -1;
-
-        const text = "✅ Correct. That's the best move.";
-        document.getElementById("coach").innerText = text;
-        speak(text);
-        renderBoard();
-        return;
-    }
-
     const afterEval = evaluateBoard();
-
-    gameReview.push({
-        move: moveResult.san,
-        piece: moveResult.piece,
-        color: moveResult.color,
-        before: beforeEval,
-        after: afterEval,
-        diff: afterEval - beforeEval,
-        moveNumber: chess.history().length,
-        bestMove: bestBeforeMove ? bestBeforeMove.san : null
-    });
 
     updatePlayerProfile(moveResult, beforeEval, afterEval);
 
@@ -1319,15 +769,65 @@ function handleClick(r, c) {
     }
 
     if (currentMode === "training" && trainingLine) {
-        processLessonMove(trainingLine, "Training", moveResult);
+        const expected = trainingLine.moves[chess.history().length - 1];
+        if (normalizeSan(moveResult.san) !== normalizeSan(expected)) {
+            alert("Wrong move! Expected: " + expected);
+            chess.undo();
+            syncLastMoveFromHistory();
+            renderBoard();
+            return;
+        }
+
+        const nextMove = trainingLine.moves[chess.history().length];
+        if (nextMove) {
+            lessonTimeoutId = setTimeout(() => {
+                const reply = chess.move(nextMove);
+                if (reply) {
+                    lastMove = reply;
+                    syncLastMoveFromHistory();
+                    renderBoard();
+                }
+                lessonTimeoutId = null;
+            }, 400);
+        }
+
+        document.getElementById("coach").innerText =
+            `Training: ${trainingLine.name}\nPlan: ${trainingLine.plan}\nNext: ${nextMove || "complete"}`;
+
         saveProgress();
+        renderBoard();
         if (chess.game_over()) endGameReview();
         return;
     }
 
     if (currentMode === "theory" && theoryLine) {
-        processLessonMove(theoryLine, "Theory", moveResult);
+        const expected = theoryLine.moves[chess.history().length - 1];
+        if (normalizeSan(moveResult.san) !== normalizeSan(expected)) {
+            alert("Wrong move! Expected: " + expected);
+            chess.undo();
+            syncLastMoveFromHistory();
+            renderBoard();
+            return;
+        }
+
+        const nextMove = theoryLine.moves[chess.history().length];
+        if (nextMove) {
+            lessonTimeoutId = setTimeout(() => {
+                const reply = chess.move(nextMove);
+                if (reply) {
+                    lastMove = reply;
+                    syncLastMoveFromHistory();
+                    renderBoard();
+                }
+                lessonTimeoutId = null;
+            }, 400);
+        }
+
+        document.getElementById("coach").innerText =
+            `Theory: ${theoryLine.name}\nPlan: ${theoryLine.plan}\nNext: ${nextMove || "complete"}`;
+
         saveProgress();
+        renderBoard();
         if (chess.game_over()) endGameReview();
         return;
     }
@@ -1353,7 +853,346 @@ function handleClick(r, c) {
 }
 
 // ======================
-// AI
+// GAME REVIEW
+// ======================
+
+let gameReview = [];
+
+function gradeMove(diff, color) {
+    const impact = color === "w" ? diff : -diff;
+
+    if (impact <= -3) return "??";
+    if (impact <= -1) return "?";
+    if (impact < 0.3) return "✓";
+    if (impact < 1.5) return "!";
+    return "!!";
+}
+
+function generateGameReview() {
+    let blunders = 0;
+    let mistakes = 0;
+    let inaccuracies = 0;
+    let greatMoves = 0;
+    let totalLoss = 0;
+
+    let reviewText = "📊 GAME REVIEW\n\n";
+
+    gameReview.forEach(entry => {
+        const grade = gradeMove(entry.diff, entry.color);
+
+        const impact = entry.color === "w" ? entry.diff : -entry.diff;
+        totalLoss += Math.abs(impact);
+
+        if (grade === "??") blunders++;
+        else if (grade === "?") mistakes++;
+        else if (grade === "✓") inaccuracies++;
+        else greatMoves++;
+
+        reviewText += `Move ${entry.moveNumber}: ${entry.move} ${grade}\n`;
+
+        if (grade === "??") {
+            reviewText += `   ❌ Blunder. Best was ${entry.bestMove || "unknown"}\n`;
+        } else if (grade === "?") {
+            reviewText += `   ⚠️ Better was ${entry.bestMove || "unknown"}\n`;
+        } else if (grade === "!!") {
+            reviewText += `   🔥 Excellent move!\n`;
+        }
+    });
+
+    const avgLoss = gameReview.length ? (totalLoss / gameReview.length).toFixed(2) : "0.00";
+    const accuracy = Math.max(0, 100 - (avgLoss * 10)).toFixed(0);
+
+    reviewText += "\n====================\n";
+    reviewText += `Accuracy: ${accuracy}%\n`;
+    reviewText += `Blunders: ${blunders}\n`;
+    reviewText += `Mistakes: ${mistakes}\n`;
+    reviewText += `Inaccuracies: ${inaccuracies}\n`;
+    reviewText += `Great Moves: ${greatMoves}\n`;
+
+    const history = gameReview.map(m => m.move);
+    const match = findBestRepertoireMatch(history);
+
+    if (match) {
+        reviewText += `\n📖 Opening: ${match.name}\n`;
+        reviewText += `Plan: ${match.plan}\n`;
+    }
+
+    reviewText += "\n🧠 Coaching Summary:\n";
+
+    if (currentGameStats.pawnRushes > 3) {
+        reviewText += "- Too many pawn pushes early\n";
+    }
+
+    if (currentGameStats.earlyQueenMoves > 2) {
+        reviewText += "- Queen developed too early\n";
+    }
+
+    if (blunders > 2) {
+        reviewText += "- Major issue: Blunders. Slow down and calculate.\n";
+    } else if (mistakes > 3) {
+        reviewText += "- Improve consistency in move quality.\n";
+    } else {
+        reviewText += "- Solid overall performance.\n";
+    }
+
+    return reviewText;
+}
+
+function findBiggestBlunder() {
+    if (gameReview.length === 0) return null;
+
+    let worst = null;
+    let worstImpact = 0;
+
+    gameReview.forEach((entry, index) => {
+        if (entry.color !== "w") return;
+
+        const impact = entry.color === "w" ? entry.diff : -entry.diff;
+
+        if (worst === null || impact < worstImpact) {
+            worst = { ...entry, index };
+            worstImpact = impact;
+        }
+    });
+
+    if (!worst || worstImpact > -1.5) return null;
+    return worst;
+}
+
+function startBlunderReplay() {
+    const blunder = findBiggestBlunder();
+
+    if (!blunder) {
+        document.getElementById("coach").innerText = "No major blunders. Solid game.";
+        return;
+    }
+
+    blunderReplayActive = true;
+    blunderReplayIndex = blunder.index;
+    blunderReplayTargetSan = blunder.bestMove || null;
+
+    chess.reset();
+
+    for (let i = 0; i < blunder.index; i++) {
+        chess.move(gameReview[i].move);
+    }
+
+    syncLastMoveFromHistory();
+    selectedSquare = null;
+    lastMove = null;
+    bestMoveHighlight = null;
+    lessonMoveHighlight = null;
+
+    const text = `❌ Blunder on move ${blunder.moveNumber}. Find the better move.`;
+    document.getElementById("coach").innerText = text;
+    speak(text);
+
+    renderBoard();
+}
+
+function endGameReview() {
+    if (gameReviewShown) return;
+    gameReviewShown = true;
+
+    const review = generateGameReview();
+    document.getElementById("coach").innerText = review;
+    alert(review);
+
+    gameReview = [];
+
+    setTimeout(() => {
+        startBlunderReplay();
+    }, 1500);
+}
+
+// ======================
+// CONTROLS
+// ======================
+
+function showBestMove() {
+    bestMoveHighlight = chess.game_over() ? null : findBestMove();
+    renderBoard();
+
+    if (bestMoveHighlight) {
+        const text = `Best move: ${bestMoveHighlight.san}. ${explainMove(bestMoveHighlight.san)}`;
+        document.getElementById("coach").innerText = text;
+        speak(text);
+    }
+}
+
+function flipBoard() {
+    flipped = !flipped;
+    renderBoard();
+}
+
+function resignGame() {
+    if (chess.game_over()) return;
+
+    if (currentMode === "computer") {
+        gameResultRecorded = true;
+        updateElo(false);
+    }
+
+    const text = "You resigned.";
+    document.getElementById("coach").innerText = text;
+    speak(text);
+
+    endGameReview();
+
+    setTimeout(() => {
+        resetGame();
+    }, 700);
+}
+
+// ======================
+// UI
+// ======================
+
+function updateUI() {
+    const evalScore = evaluateBoard();
+
+    const modeLabel =
+        currentMode === "computer" ? "Computer" :
+        currentMode === "theory" ? "Theory" :
+        currentMode === "training" ? "Training" :
+        "Analysis";
+
+    const status = document.getElementById("status");
+    if (status) {
+        status.innerText =
+            (chess.turn() === "w" ? "White" : "Black") +
+            " to Move | ELO: " + playerElo +
+            " | Eval: " + evalScore.toFixed(2) +
+            " | Mode: " + modeLabel +
+            (flipped ? " | Flipped" : "");
+    }
+
+    const historyBox = document.getElementById("history");
+    if (historyBox) {
+        historyBox.innerHTML = chess.history().join("<br>");
+    }
+
+    const percent = Math.max(0, Math.min(100, 50 + (evalScore * 5)));
+    const evalFill = document.getElementById("evalFill");
+    if (evalFill) {
+        evalFill.style.height = percent + "%";
+    }
+
+    const opening = findBestRepertoireMatch(chess.history());
+    const openingDisplay = document.getElementById("openingDisplay");
+    if (openingDisplay) {
+        if (opening) {
+            openingDisplay.innerText = `📖 ${opening.name}\nPlan: ${opening.plan}`;
+        } else {
+            openingDisplay.innerText = "";
+        }
+    }
+
+    if (currentMode === "analysis") {
+        const coach = document.getElementById("coach");
+        if (coach) {
+            coach.innerText = getAnalysisCoachText();
+        }
+    }
+
+    adaptiveCoach();
+    detectPositionPlan();
+}
+
+function getAnalysisCoachText() {
+    const history = chess.history();
+    const evalScore = evaluateBoard().toFixed(2);
+    const bestText = bestMoveHighlight
+        ? `Best: ${bestMoveHighlight.san} — ${explainMove(bestMoveHighlight.san)}`
+        : "";
+
+    const match = findBestRepertoireMatch(history);
+
+    if (!match) {
+        return [
+            "Opening: Unrecognized",
+            `Eval: ${evalScore}`,
+            bestText
+        ].filter(Boolean).join("\n");
+    }
+
+    return [
+        `Opening: ${match.name}`,
+        `In book: ${match.matchedPlies}/${match.moves.length} plies`,
+        `Plan: ${match.plan}`,
+        `Eval: ${evalScore}`,
+        bestText
+    ].filter(Boolean).join("\n");
+}
+
+// ======================
+// MODE SWITCH
+// ======================
+
+function changeMode() {
+    currentMode = document.getElementById("gameMode")?.value || "computer";
+
+    clearTimeout(lessonTimeoutId);
+    lessonTimeoutId = null;
+    gameResultRecorded = false;
+
+    if (currentMode === "training") {
+        trainingLine = pickRandomTrainingLine();
+        theoryLine = null;
+    } else if (currentMode === "theory") {
+        theoryLine = pickRandomTheoryLine();
+        trainingLine = null;
+    } else {
+        trainingLine = null;
+        theoryLine = null;
+    }
+
+    resetGame();
+
+    if (currentMode === "analysis") {
+        const text = "Analysis board active.";
+        const coach = document.getElementById("coach");
+        if (coach) coach.innerText = text;
+        speak(text);
+    }
+}
+
+// ======================
+// RESET
+// ======================
+
+function resetGame() {
+    clearTimeout(lessonTimeoutId);
+    lessonTimeoutId = null;
+
+    chess.reset();
+    lastMove = null;
+    selectedSquare = null;
+    bestMoveHighlight = null;
+    lessonMoveHighlight = null;
+    gameResultRecorded = false;
+    gameReviewShown = false;
+    gameReview = [];
+    currentGameStats = resetGameStats();
+    blunderReplayActive = false;
+    blunderReplayTargetSan = null;
+    blunderReplayIndex = -1;
+
+    if (currentMode === "training" && trainingLine) {
+        const text = `Training: ${trainingLine.name}\nPlan: ${trainingLine.plan}`;
+        document.getElementById("coach").innerText = text;
+    }
+
+    if (currentMode === "theory" && theoryLine) {
+        const text = `Theory: ${theoryLine.name}\nPlan: ${theoryLine.plan}`;
+        document.getElementById("coach").innerText = text;
+    }
+
+    renderBoard();
+}
+
+// ======================
+// AI MOVE
 // ======================
 
 function getCommonFirstResponse() {
@@ -1378,7 +1217,6 @@ function aiMove() {
     const history = chess.history();
     const moveNumber = history.length;
 
-    // First response against 1.e4: weighted by common defenses
     if (
         currentMode === "computer" &&
         moveNumber === 1 &&
@@ -1487,243 +1325,9 @@ function aiMove() {
 }
 
 // ======================
-// BEST MOVE
-// ======================
-
-function showBestMove() {
-    bestMoveHighlight = chess.game_over() ? null : findBestMove();
-    renderBoard();
-
-    if (bestMoveHighlight) {
-        const text = `Best move: ${bestMoveHighlight.san}. ${explainMove(bestMoveHighlight.san)}`;
-        document.getElementById("coach").innerText = text;
-        speak(text);
-    }
-}
-
-// ======================
-// CONTROLS
-// ======================
-
-function flipBoard() {
-    flipped = !flipped;
-    renderBoard();
-}
-
-function resignGame() {
-    if (chess.game_over()) return;
-
-    if (currentMode === "computer") {
-        gameResultRecorded = true;
-        updateElo(false);
-    }
-
-    const text = "You resigned.";
-    document.getElementById("coach").innerText = text;
-    speak(text);
-
-    endGameReview();
-
-    setTimeout(() => {
-        resetGame();
-    }, 700);
-}
-
-// ======================
-// UI
-// ======================
-
-function updateUI() {
-    const evalScore = evaluateBoard();
-
-    const modeLabel =
-        currentMode === "computer" ? "Computer" :
-        currentMode === "theory" ? "Theory" :
-        currentMode === "training" ? "Training" :
-        "Analysis";
-
-    const status = document.getElementById("status");
-    if (status) {
-        status.innerText =
-            (chess.turn() === "w" ? "White" : "Black") +
-            " to Move | ELO: " + playerElo +
-            " | Eval: " + evalScore.toFixed(2) +
-            " | Mode: " + modeLabel +
-            (flipped ? " | Flipped" : "");
-    }
-
-    const historyBox = document.getElementById("history");
-    if (historyBox) {
-        historyBox.innerHTML = chess.history().join("<br>");
-    }
-
-    const percent = Math.max(0, Math.min(100, 50 + (evalScore * 5)));
-    const evalFill = document.getElementById("evalFill");
-    if (evalFill) {
-        evalFill.style.height = percent + "%";
-    }
-
-    const opening = detectOpening();
-    const openingDisplay = document.getElementById("openingDisplay");
-    if (openingDisplay) {
-        if (opening) {
-            openingDisplay.innerText = `📖 ${opening.name} (${opening.branch})\nPlan: ${opening.plan}`;
-        } else {
-            openingDisplay.innerText = "";
-        }
-    }
-
-    if (currentMode === "analysis") {
-        const coach = document.getElementById("coach");
-        if (coach) {
-            coach.innerText = getAnalysisCoachText();
-        }
-    }
-
-    adaptiveCoach();
-    detectPositionPlan();
-}
-
-// ======================
-// COACH
-// ======================
-
-function adaptiveCoach() {
-    const history = chess.history();
-    const adaptiveCoachBox = document.getElementById("adaptiveCoach");
-    if (!adaptiveCoachBox) return;
-
-    if (history.length === 0) {
-        adaptiveCoachBox.innerText = "Ready for battle.";
-        return;
-    }
-
-    if (history.length === 1) {
-        adaptiveCoachBox.innerText = "Good start. Control the center and develop your pieces.";
-        return;
-    }
-
-    const messages = [];
-
-    if (currentGameStats.pawnRushes > 3) {
-        messages.push("You're pushing too many pawns. Develop pieces instead.");
-    }
-
-    if (currentGameStats.earlyQueenMoves > 2) {
-        messages.push("Your queen is coming out too early.");
-    }
-
-    if (currentGameStats.blunders > 0) {
-        messages.push("You've made a blunder. Watch your pieces.");
-    }
-
-    if (currentGameStats.mistakes > 1) {
-        messages.push("Too many mistakes. Slow down.");
-    }
-
-    if (currentGameStats.goodMoves > currentGameStats.mistakes) {
-        messages.push("You're playing solid chess.");
-    }
-
-    if (messages.length === 0) {
-        messages.push("Balanced position. Keep improving.");
-    }
-
-    const advice = messages[Math.floor(Math.random() * messages.length)];
-    adaptiveCoachBox.innerText = advice;
-}
-
-function detectPositionPlan() {
-    const box = document.getElementById("positionPlan");
-    if (!box) return;
-
-    for (const key in positionPlans) {
-        if (positionPlans[key].condition()) {
-            box.innerText = positionPlans[key].advice;
-            return;
-        }
-    }
-
-    box.innerText = "No structure detected.";
-}
-
-// ======================
-// MODE SWITCH
-// ======================
-
-function changeMode() {
-    currentMode = document.getElementById("gameMode")?.value || "computer";
-
-    clearTimeout(lessonTimeoutId);
-    lessonTimeoutId = null;
-    gameResultRecorded = false;
-
-    applySelectionToCurrentMode();
-
-    if (currentMode === "training") {
-        if (!trainingLine) {
-            trainingLine = pickRandomLesson();
-        }
-        theoryLine = null;
-    } else if (currentMode === "theory") {
-        if (!theoryLine) {
-            theoryLine = pickRandomLesson();
-        }
-        trainingLine = null;
-    } else {
-        trainingLine = null;
-        theoryLine = null;
-    }
-
-    resetGame();
-
-    if (currentMode === "analysis") {
-        const text = "Analysis board active.";
-        const coach = document.getElementById("coach");
-        if (coach) coach.innerText = text;
-        speak(text);
-    }
-}
-
-// ======================
-// RESET
-// ======================
-
-function resetGame() {
-    clearTimeout(lessonTimeoutId);
-    lessonTimeoutId = null;
-
-    chess.reset();
-    lastMove = null;
-    selectedSquare = null;
-    bestMoveHighlight = null;
-    lessonMoveHighlight = null;
-    gameResultRecorded = false;
-    gameReviewShown = false;
-    gameReview = [];
-    currentGameStats = resetGameStats();
-    blunderReplayActive = false;
-    blunderReplayTargetSan = null;
-    blunderReplayIndex = -1;
-
-    if (currentMode === "training" && trainingLine) {
-        autoPlayLessonPrelude(trainingLine, "Training");
-        return;
-    }
-
-    if (currentMode === "theory" && theoryLine) {
-        autoPlayLessonPrelude(theoryLine, "Theory");
-        return;
-    }
-
-    renderBoard();
-}
-
-// ======================
 // INIT
 // ======================
 
 loadProgress();
 syncAiElo();
-updateVariationOptions();
 renderBoard();
