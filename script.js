@@ -282,6 +282,24 @@ function detectOpening() {
     };
 }
 
+function getSelectedVariationLesson() {
+    const opening = document.getElementById("openingSelect")?.value;
+    const variationName = document.getElementById("variationSelect")?.value;
+
+    const variations = getVariationsByOpening(opening);
+    return variations.find(v => v.name === variationName) || variations[0] || null;
+}
+
+function applySelectionToCurrentMode() {
+    const selectedLesson = getSelectedVariationLesson();
+
+    if (currentMode === "training") {
+        trainingLine = selectedLesson;
+    } else if (currentMode === "theory") {
+        theoryLine = selectedLesson;
+    }
+}
+
 function updateVariationOptions() {
     const opening = document.getElementById("openingSelect")?.value;
     const variationSelect = document.getElementById("variationSelect");
@@ -297,19 +315,24 @@ function updateVariationOptions() {
         option.textContent = v.branch;
         variationSelect.appendChild(option);
     });
+
+    if (variations.length > 0) {
+        variationSelect.value = variations[0].name;
+    }
+
+    applySelectionToCurrentMode();
 }
+
+let currentNode = null;
 
 function startTrainingFromTree(tree) {
     chess.reset();
     currentNode = tree;
 
-    document.getElementById("coach").innerText =
-        "Start: " + tree.name;
+    document.getElementById("coach").innerText = "Start: " + tree.name;
 
     renderBoard();
 }
-
-let currentNode = null;
 
 // ======================
 // CURRENT LESSON STATE
@@ -374,28 +397,20 @@ function explainMove(moveSan) {
 
 const positionPlans = {
     frenchAdvance: {
-        condition: () =>
-            chess.get("e5") && chess.get("d4") && chess.get("e6"),
-        advice:
-            "French Advance: space advantage. Keep the center locked and attack the kingside."
+        condition: () => chess.get("e5") && chess.get("d4") && chess.get("e6"),
+        advice: "French Advance: space advantage. Keep the center locked and attack the kingside."
     },
     kingsideAttack: {
-        condition: () =>
-            chess.get("f4") || chess.get("g4") || chess.get("h4"),
-        advice:
-            "Kingside attack: bring rooks in and open files toward the king."
+        condition: () => chess.get("f4") || chess.get("g4") || chess.get("h4"),
+        advice: "Kingside attack: bring rooks in and open files toward the king."
     },
     developedCenter: {
-        condition: () =>
-            chess.get("e4") && chess.get("d4"),
-        advice:
-            "Strong center: develop quickly and castle."
+        condition: () => chess.get("e4") && chess.get("d4"),
+        advice: "Strong center: develop quickly and castle."
     },
     openCenter: {
-        condition: () =>
-            !chess.get("d4") && !chess.get("e4"),
-        advice:
-            "Open center: activate pieces and look for tactics."
+        condition: () => !chess.get("d4") && !chess.get("e4"),
+        advice: "Open center: activate pieces and look for tactics."
     }
 };
 
@@ -518,6 +533,32 @@ function findBestRepertoireMatch(history) {
 }
 
 // ======================
+// VOICE
+// ======================
+
+function speak(text) {
+    if (!("speechSynthesis" in window)) return;
+
+    const clean = String(text || "").trim();
+    if (!clean) return;
+
+    const utter = new SpeechSynthesisUtterance(clean);
+    utter.rate = 0.96;
+    utter.pitch = 1;
+    utter.volume = 1;
+
+    const voices = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
+    const preferred = voices.find(v =>
+        /natural|google|microsoft|samantha|victoria|aria|zira|alex/i.test(v.name)
+    ) || voices.find(v => /^en/i.test(v.lang)) || voices[0];
+
+    if (preferred) utter.voice = preferred;
+
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utter);
+}
+
+// ======================
 // EVAL + SEARCH
 // ======================
 
@@ -612,10 +653,7 @@ function rankMoves(depth = getSearchDepth()) {
         return { move, score };
     });
 
-    scored.sort((a, b) => whiteToMove
-        ? b.score - a.score
-        : a.score - b.score
-    );
+    scored.sort((a, b) => whiteToMove ? b.score - a.score : a.score - b.score);
 
     return scored;
 }
@@ -672,8 +710,7 @@ function getRepertoireMove() {
 function updateElo(result) {
     syncAiElo();
 
-    const expected =
-        1 / (1 + Math.pow(10, (aiElo - playerElo) / 400));
+    const expected = 1 / (1 + Math.pow(10, (aiElo - playerElo) / 400));
 
     playerElo = Math.round(playerElo + K_FACTOR * (result - expected));
     syncAiElo();
@@ -846,6 +883,7 @@ function processLessonMove(lesson, label, moveResult) {
 
             const followupText = lessonCoachText(label, lesson, upcoming || null);
             document.getElementById("coach").innerText = followupText;
+            speak(followupText);
 
             lessonTimeoutId = null;
             saveProgress();
@@ -1097,8 +1135,6 @@ function endGameReview() {
     document.getElementById("coach").innerText = review;
     alert(review);
 
-    gameReview = [];
-
     setTimeout(() => {
         startBlunderReplay();
     }, 1500);
@@ -1127,6 +1163,8 @@ function renderBoard() {
     refreshHints();
 
     const boardDiv = document.getElementById("board");
+    if (!boardDiv) return;
+
     boardDiv.innerHTML = "";
 
     const board = chess.board();
@@ -1340,6 +1378,46 @@ function aiMove() {
     const history = chess.history();
     const moveNumber = history.length;
 
+    // First response against 1.e4: weighted by common defenses
+    if (
+        currentMode === "computer" &&
+        moveNumber === 1 &&
+        normalizeSan(history[0]) === "e4"
+    ) {
+        const firstResponseSan = getCommonFirstResponse();
+        const move = findLegalMoveBySan(firstResponseSan);
+
+        if (move) {
+            const beforeEval = evaluateBoard();
+            const bestBeforeMove = findBestMove();
+
+            const played = chess.move(move);
+            lastMove = played;
+
+            const afterEval = evaluateBoard();
+
+            gameReview.push({
+                move: played.san,
+                piece: played.piece,
+                color: played.color,
+                before: beforeEval,
+                after: afterEval,
+                diff: afterEval - beforeEval,
+                moveNumber: chess.history().length,
+                bestMove: bestBeforeMove ? bestBeforeMove.san : null
+            });
+
+            const text = `Common response: ${played.san}. ${explainMove(played.san)}`;
+            document.getElementById("coach").innerText = text;
+            speak(text);
+
+            renderBoard();
+            maybeFinalizeComputerGame();
+            if (chess.game_over()) endGameReview();
+            return;
+        }
+    }
+
     const repMoveSan = getRepertoireMove();
 
     let repertoireChance = 0.5;
@@ -1464,15 +1542,20 @@ function updateUI() {
         currentMode === "training" ? "Training" :
         "Analysis";
 
-    document.getElementById("status").innerText =
-        (chess.turn() === "w" ? "White" : "Black") +
-        " to Move | ELO: " + playerElo +
-        " | Eval: " + evalScore.toFixed(2) +
-        " | Mode: " + modeLabel +
-        (flipped ? " | Flipped" : "");
+    const status = document.getElementById("status");
+    if (status) {
+        status.innerText =
+            (chess.turn() === "w" ? "White" : "Black") +
+            " to Move | ELO: " + playerElo +
+            " | Eval: " + evalScore.toFixed(2) +
+            " | Mode: " + modeLabel +
+            (flipped ? " | Flipped" : "");
+    }
 
-    document.getElementById("history").innerHTML =
-        chess.history().join("<br>");
+    const historyBox = document.getElementById("history");
+    if (historyBox) {
+        historyBox.innerHTML = chess.history().join("<br>");
+    }
 
     const percent = Math.max(0, Math.min(100, 50 + (evalScore * 5)));
     const evalFill = document.getElementById("evalFill");
@@ -1491,7 +1574,10 @@ function updateUI() {
     }
 
     if (currentMode === "analysis") {
-        document.getElementById("coach").innerText = getAnalysisCoachText();
+        const coach = document.getElementById("coach");
+        if (coach) {
+            coach.innerText = getAnalysisCoachText();
+        }
     }
 
     adaptiveCoach();
@@ -1504,15 +1590,16 @@ function updateUI() {
 
 function adaptiveCoach() {
     const history = chess.history();
+    const adaptiveCoachBox = document.getElementById("adaptiveCoach");
+    if (!adaptiveCoachBox) return;
 
     if (history.length === 0) {
-        document.getElementById("adaptiveCoach").innerText = "Ready for battle.";
+        adaptiveCoachBox.innerText = "Ready for battle.";
         return;
     }
 
     if (history.length === 1) {
-        document.getElementById("adaptiveCoach").innerText =
-            "Good start. Control the center and develop your pieces.";
+        adaptiveCoachBox.innerText = "Good start. Control the center and develop your pieces.";
         return;
     }
 
@@ -1543,20 +1630,21 @@ function adaptiveCoach() {
     }
 
     const advice = messages[Math.floor(Math.random() * messages.length)];
-    document.getElementById("adaptiveCoach").innerText = advice;
+    adaptiveCoachBox.innerText = advice;
 }
 
 function detectPositionPlan() {
+    const box = document.getElementById("positionPlan");
+    if (!box) return;
+
     for (const key in positionPlans) {
         if (positionPlans[key].condition()) {
-            document.getElementById("positionPlan").innerText =
-                positionPlans[key].advice;
+            box.innerText = positionPlans[key].advice;
             return;
         }
     }
 
-    document.getElementById("positionPlan").innerText =
-        "No structure detected.";
+    box.innerText = "No structure detected.";
 }
 
 // ======================
@@ -1564,37 +1652,37 @@ function detectPositionPlan() {
 // ======================
 
 function changeMode() {
-    currentMode = document.getElementById("gameMode").value;
+    currentMode = document.getElementById("gameMode")?.value || "computer";
 
     clearTimeout(lessonTimeoutId);
     lessonTimeoutId = null;
-
     gameResultRecorded = false;
 
+    applySelectionToCurrentMode();
+
     if (currentMode === "training") {
-        trainingLine = pickRandomLesson();
+        if (!trainingLine) {
+            trainingLine = pickRandomLesson();
+        }
         theoryLine = null;
     } else if (currentMode === "theory") {
-        theoryLine = pickRandomLesson();
+        if (!theoryLine) {
+            theoryLine = pickRandomLesson();
+        }
         trainingLine = null;
     } else {
         trainingLine = null;
         theoryLine = null;
     }
 
-    updateVariationOptions();
     resetGame();
 
     if (currentMode === "analysis") {
         const text = "Analysis board active.";
-        document.getElementById("coach").innerText = text;
+        const coach = document.getElementById("coach");
+        if (coach) coach.innerText = text;
         speak(text);
     }
-}
-
-function getSelectedOpening() {
-    const el = document.getElementById("openingSelect");
-    return el ? el.value : "Four Knights Scotch";
 }
 
 // ======================
@@ -1629,36 +1717,6 @@ function resetGame() {
     }
 
     renderBoard();
-}
-
-// ======================
-// OPENING SELECTION
-// ======================
-
-function getSelectedVariationLesson() {
-    const opening = document.getElementById("openingSelect")?.value;
-    const variationName = document.getElementById("variationSelect")?.value;
-
-    const variations = getVariationsByOpening(opening);
-    return variations.find(v => v.name === variationName) || variations[0] || null;
-}
-
-// ======================
-// TREE / VARIATION TRAINING HELPERS
-// ======================
-
-function getOpeningTreeNodeFromLesson(lesson) {
-    if (!lesson) return null;
-
-    return {
-        name: lesson.name,
-        opening: lesson.opening,
-        branch: lesson.branch,
-        side: lesson.side,
-        move: lesson.moves[0] || null,
-        plan: lesson.plan,
-        responses: {}
-    };
 }
 
 // ======================
