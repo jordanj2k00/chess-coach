@@ -1,57 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Liquid Grave Chess Coach</title>
-    <link rel="stylesheet" href="style.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<meta charset="UTF-8">
+<title>Chess Trainer</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
 </head>
+
 <body>
 
-    <h1>♟ Liquid Grave Chess Coach</h1>
+<div class="container">
 
-    <div class="top-controls">
+    <!-- LEFT SIDE -->
+    <div class="left-panel">
+
+        <h2>♟️ Chess Trainer</h2>
+
+        <!-- MODE -->
         <select id="gameMode" onchange="changeMode()">
-            <option value="computer" selected>Regular Game vs Computer</option>
-            <option value="theory">Opening Theory Practice</option>
-            <option value="training">Training Mode</option>
-            <option value="analysis">Analysis Board</option>
+            <option value="computer">Vs Computer</option>
+            <option value="training">Training</option>
+            <option value="theory">Theory</option>
+            <option value="analysis">Analysis</option>
         </select>
 
-        <button onclick="flipBoard()">Flip Board</button>
-        <button onclick="resignGame()">Resign</button>
-    </div>
+        <!-- OPENING -->
+        <select id="openingSelect" onchange="updateVariationOptions()">
+            <option>Four Knights Scotch</option>
+            <option>Three Knights Game</option>
+            <option>French Defense: Advance Variation</option>
+            <option>Caro-Kann: Tal Variation</option>
+            <option>Sicilian Defense: Grand Prix Attack</option>
+            <option>King's Indian Defense</option>
+            <option>Alekhine Defense</option>
+        </select>
 
-    <div id="boardShell">
-        <div id="board"></div>
-        <div id="evalBar" aria-label="Evaluation bar">
-            <div id="evalFill"></div>
+        <!-- VARIATION -->
+        <select id="variationSelect"></select>
+
+        <!-- BUTTONS -->
+        <div class="buttons">
+            <button onclick="resetGame()">Reset</button>
+            <button onclick="flipBoard()">Flip</button>
+            <button onclick="showBestMove()">Best Move</button>
+            <button onclick="resignGame()">Resign</button>
         </div>
+
+        <!-- STATUS -->
+        <div id="status" class="box"></div>
+
+        <!-- OPENING DISPLAY -->
+        <div id="openingDisplay" class="box gold"></div>
+
+        <!-- COACH -->
+        <div id="coach" class="box"></div>
+
+        <!-- ADAPTIVE -->
+        <div id="adaptiveCoach" class="box"></div>
+
+        <!-- POSITION PLAN -->
+        <div id="positionPlan" class="box"></div>
+
+        <!-- HISTORY -->
+        <div id="history" class="box history"></div>
+
     </div>
 
-    <div class="button-row">
-        <button onclick="resetGame()">Reset Game</button>
-        <button onclick="showBestMove()">Show Best Move</button>
+    <!-- BOARD -->
+    <div class="board-container">
+        <div id="board"></div>
     </div>
 
-    <div id="status-panel">
-        <h2>Status</h2>
-        <div id="status">White to Move</div>
-
-        <h2>Coach</h2>
-        <div id="coach">Ready for battle.</div>
-
-        <h2>Move History</h2>
-        <div id="history"></div>
-
-        <h2>Adaptive Coach</h2>
-        <div id="adaptiveCoach">Learning your tendencies...</div>
-
-        <h2>Position Plan</h2>
-        <div id="positionPlan">Waiting for position...</div>
+    <!-- EVAL BAR -->
+    <div class="eval-bar">
+        <div id="evalFill"></div>
     </div>
 
-    <script src="script.js"></script>
+</div>
+
+<script src="script.js"></script>
+
 </body>
 </html>
