@@ -249,6 +249,68 @@ function buildRepertoireLessons(tree) {
 
 const repertoireLessons = buildRepertoireLessons(repertoireTree);
 
+function getLessonsByOpening(openingName) {
+    return repertoireLessons.filter(l => l.opening === openingName);
+}
+
+function getVariationsByOpening(openingName) {
+    return repertoireLessons.filter(l => l.opening === openingName);
+}
+
+function detectOpening() {
+    const history = chess.history();
+
+    let bestMatch = null;
+    let bestLength = 0;
+
+    for (const lesson of repertoireLessons) {
+        const matchLength = commonPrefixLength(history, lesson.moves);
+
+        if (matchLength > bestLength) {
+            bestLength = matchLength;
+            bestMatch = lesson;
+        }
+    }
+
+    if (!bestMatch || bestLength < 3) return null;
+
+    return {
+        name: bestMatch.opening,
+        branch: bestMatch.branch,
+        plan: bestMatch.plan,
+        progress: `${bestLength}/${bestMatch.moves.length}`
+    };
+}
+
+function updateVariationOptions() {
+    const opening = document.getElementById("openingSelect")?.value;
+    const variationSelect = document.getElementById("variationSelect");
+    if (!variationSelect) return;
+
+    variationSelect.innerHTML = "";
+
+    const variations = getVariationsByOpening(opening);
+
+    variations.forEach(v => {
+        const option = document.createElement("option");
+        option.value = v.name;
+        option.textContent = v.branch;
+        variationSelect.appendChild(option);
+    });
+}
+
+function startTrainingFromTree(tree) {
+    chess.reset();
+    currentNode = tree;
+
+    document.getElementById("coach").innerText =
+        "Start: " + tree.name;
+
+    renderBoard();
+}
+
+let currentNode = null;
+
 // ======================
 // CURRENT LESSON STATE
 // ======================
@@ -453,32 +515,6 @@ function findBestRepertoireMatch(history) {
     }
 
     return best;
-}
-
-// ======================
-// VOICE
-// ======================
-
-function speak(text) {
-    if (!("speechSynthesis" in window)) return;
-
-    const clean = String(text || "").trim();
-    if (!clean) return;
-
-    const utter = new SpeechSynthesisUtterance(clean);
-    utter.rate = 0.96;
-    utter.pitch = 1;
-    utter.volume = 1;
-
-    const voices = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
-    const preferred = voices.find(v =>
-        /natural|google|microsoft|samantha|victoria|aria|zira|alex/i.test(v.name)
-    ) || voices.find(v => /^en/i.test(v.lang)) || voices[0];
-
-    if (preferred) utter.voice = preferred;
-
-    speechSynthesis.cancel();
-    speechSynthesis.speak(utter);
 }
 
 // ======================
@@ -810,7 +846,6 @@ function processLessonMove(lesson, label, moveResult) {
 
             const followupText = lessonCoachText(label, lesson, upcoming || null);
             document.getElementById("coach").innerText = followupText;
-            speak(followupText);
 
             lessonTimeoutId = null;
             saveProgress();
@@ -1445,6 +1480,16 @@ function updateUI() {
         evalFill.style.height = percent + "%";
     }
 
+    const opening = detectOpening();
+    const openingDisplay = document.getElementById("openingDisplay");
+    if (openingDisplay) {
+        if (opening) {
+            openingDisplay.innerText = `📖 ${opening.name} (${opening.branch})\nPlan: ${opening.plan}`;
+        } else {
+            openingDisplay.innerText = "";
+        }
+    }
+
     if (currentMode === "analysis") {
         document.getElementById("coach").innerText = getAnalysisCoachText();
     }
@@ -1537,6 +1582,7 @@ function changeMode() {
         theoryLine = null;
     }
 
+    updateVariationOptions();
     resetGame();
 
     if (currentMode === "analysis") {
@@ -1544,6 +1590,11 @@ function changeMode() {
         document.getElementById("coach").innerText = text;
         speak(text);
     }
+}
+
+function getSelectedOpening() {
+    const el = document.getElementById("openingSelect");
+    return el ? el.value : "Four Knights Scotch";
 }
 
 // ======================
@@ -1581,9 +1632,40 @@ function resetGame() {
 }
 
 // ======================
+// OPENING SELECTION
+// ======================
+
+function getSelectedVariationLesson() {
+    const opening = document.getElementById("openingSelect")?.value;
+    const variationName = document.getElementById("variationSelect")?.value;
+
+    const variations = getVariationsByOpening(opening);
+    return variations.find(v => v.name === variationName) || variations[0] || null;
+}
+
+// ======================
+// TREE / VARIATION TRAINING HELPERS
+// ======================
+
+function getOpeningTreeNodeFromLesson(lesson) {
+    if (!lesson) return null;
+
+    return {
+        name: lesson.name,
+        opening: lesson.opening,
+        branch: lesson.branch,
+        side: lesson.side,
+        move: lesson.moves[0] || null,
+        plan: lesson.plan,
+        responses: {}
+    };
+}
+
+// ======================
 // INIT
 // ======================
 
 loadProgress();
 syncAiElo();
+updateVariationOptions();
 renderBoard();
